@@ -99,7 +99,15 @@ export default function PlannerPage() {
   const handleAddTask = useCallback(async () => {
   if (!newTask.title.trim()) return
   try {
-    const task = await createPlannerTask({ ...newTask, completed: false, week_start: weekStart })
+    const task = await createPlannerTask({
+      title: newTask.title,
+      category: newTask.category,
+      day: newTask.day,
+      start_hour: newTask.startHour,
+      duration: newTask.duration,
+      completed: false,
+      week_start: weekStart
+    })
     if (task) setTasks((prev) => [...prev, task])
     setNewTask({ title: "", category: "work", day: 0, startHour: 9, duration: 1 })
     setShowAddTask(false)
