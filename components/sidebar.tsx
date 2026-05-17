@@ -20,11 +20,11 @@ import { createClient } from "@/lib/supabase/client"
 import type { Profile } from "@/lib/db"
 
 const navItems = [
-  { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-  { href: "/planner", icon: CalendarDays, label: "Planner" },
+  { href: "/dashboard", icon: LayoutDashboard, label: "Tableau de bord" },
+  { href: "/planner", icon: CalendarDays, label: "Planificateur" },
   { href: "/focus", icon: Timer, label: "Focus" },
-  { href: "/leaderboard", icon: Trophy, label: "Leaderboard" },
-  { href: "/profile", icon: User, label: "Profile" },
+  { href: "/leaderboard", icon: Trophy, label: "Classement" },
+  { href: "/profile", icon: User, label: "Profil" },
 ]
 
 export function Sidebar() {
@@ -53,14 +53,14 @@ export function Sidebar() {
     router.refresh()
   }
 
-  const displayName = profile?.name ?? "User"
+  const displayName = profile?.name ?? "Utilisateur"
   const displayXP = profile?.xp ?? 0
   const displayLevel = profile?.level ?? 1
   const initials = displayName.slice(0, 2).toUpperCase()
 
   return (
     <>
-      {/* Mobile Header */}
+      {/* En-tête mobile */}
       <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-3 border-b border-white/[0.08] bg-background/80 backdrop-blur-xl lg:hidden">
         <Link href="/" className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-cyan-500">
@@ -76,7 +76,7 @@ export function Sidebar() {
         </button>
       </div>
 
-      {/* Mobile Menu */}
+      {/* Menu mobile */}
       <AnimatePresence>
         {mobileOpen && (
           <motion.div
@@ -110,14 +110,14 @@ export function Sidebar() {
                 className="flex items-center gap-3 px-4 py-3 rounded-xl text-muted-foreground hover:bg-white/[0.04] hover:text-white transition-all duration-200 text-left"
               >
                 <LogOut className="h-5 w-5" />
-                <span className="font-medium">Sign Out</span>
+                <span className="font-medium">Se déconnecter</span>
               </button>
             </nav>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Desktop Sidebar */}
+      {/* Sidebar bureau */}
       <aside className="fixed left-0 top-0 z-40 hidden h-screen w-64 flex-col border-r border-white/[0.08] bg-background/50 backdrop-blur-xl lg:flex">
         <div className="flex items-center gap-3 px-6 py-6">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-cyan-500 shadow-[0_0_20px_rgba(147,51,234,0.4)]">
@@ -174,7 +174,7 @@ export function Sidebar() {
             className="flex w-full items-center gap-3 px-3 py-2 rounded-xl text-muted-foreground hover:text-white hover:bg-white/[0.04] transition-all duration-200 text-sm"
           >
             <LogOut className="h-4 w-4" />
-            Sign out
+            Se déconnecter
           </button>
         </div>
       </aside>
