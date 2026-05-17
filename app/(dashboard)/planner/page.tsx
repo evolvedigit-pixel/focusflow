@@ -166,7 +166,7 @@ export default function PlannerPage() {
   const progressPct = todos.length > 0 ? Math.round((completedCount / todos.length) * 100) : 0
 
   return (
-    <div className="flex flex-col gap-5 h-full">
+    <div className="flex flex-col gap-5 h-full relative z-0">
 
       {/* ── Header ── */}
       <motion.div
