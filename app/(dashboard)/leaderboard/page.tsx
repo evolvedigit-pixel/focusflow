@@ -7,10 +7,6 @@ import { Trophy, Flame, Clock, Crown, Medal, Award, Loader2 } from "lucide-react
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
 
-const tabs = [
-  { id: "alltime", label: "All Time" },
-]
-
 type LeaderUser = {
   id: string
   name: string | null
@@ -48,13 +44,13 @@ export default function LeaderboardPage() {
   return (
     <div className="space-y-6">
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-        <h1 className="text-2xl font-bold sm:text-3xl">Leaderboard</h1>
-        <p className="text-muted-foreground mt-1">Top performers by XP</p>
+        <h1 className="text-2xl font-bold sm:text-3xl">Classement</h1>
+        <p className="text-muted-foreground mt-1">Meilleurs joueurs par XP</p>
       </motion.div>
 
       {myRank > 0 && (
         <GlassCard className="p-4">
-          <p className="text-sm text-muted-foreground">Your rank</p>
+          <p className="text-sm text-muted-foreground">Votre classement</p>
           <p className="text-2xl font-bold text-purple-400">#{myRank}</p>
         </GlassCard>
       )}
@@ -67,7 +63,7 @@ export default function LeaderboardPage() {
             </div>
           ) : users.length === 0 ? (
             <div className="flex h-48 items-center justify-center text-muted-foreground text-sm">
-              No users yet. Be the first to earn XP!
+              Aucun utilisateur pour l&apos;instant. Soyez le premier à gagner des XP !
             </div>
           ) : (
             <div className="space-y-3">
@@ -94,7 +90,7 @@ export default function LeaderboardPage() {
                         : "bg-white/[0.02] hover:bg-white/[0.05]"
                     )}
                   >
-                    {/* Rank */}
+                    {/* Rang */}
                     <div className={cn(
                       "flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full",
                       rankGradient ? `bg-gradient-to-br ${rankGradient}` : "bg-white/[0.08]"
@@ -104,25 +100,25 @@ export default function LeaderboardPage() {
                         : <span className="text-sm font-bold">{rank}</span>}
                     </div>
 
-                    {/* Avatar placeholder */}
+                    {/* Avatar */}
                     <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-purple-500/30 to-cyan-500/30 text-sm font-bold">
                       {(user.name ?? "U").slice(0, 2).toUpperCase()}
                     </div>
 
-                    {/* Info */}
+                    {/* Infos */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <p className="font-medium truncate">{user.name ?? "Anonymous"}</p>
-                        {isMe && <span className="text-xs text-purple-400 font-medium">You</span>}
+                        <p className="font-medium truncate">{user.name ?? "Anonyme"}</p>
+                        {isMe && <span className="text-xs text-purple-400 font-medium">Vous</span>}
                       </div>
-                      <p className="text-xs text-muted-foreground">Level {user.level}</p>
+                      <p className="text-xs text-muted-foreground">Niveau {user.level}</p>
                     </div>
 
                     {/* Stats */}
                     <div className="hidden sm:flex items-center gap-4 text-sm text-muted-foreground">
                       <div className="flex items-center gap-1">
                         <Flame className="h-4 w-4 text-orange-400" />
-                        <span>{user.streak}d</span>
+                        <span>{user.streak}j</span>
                       </div>
                       <div className="flex items-center gap-1">
                         <Clock className="h-4 w-4 text-cyan-400" />
@@ -145,3 +141,4 @@ export default function LeaderboardPage() {
     </div>
   )
 }
+

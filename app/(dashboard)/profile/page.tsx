@@ -6,9 +6,7 @@ import { GlassCard } from "@/components/ui/glass-card"
 import { Progress } from "@/components/ui/progress"
 import { AnimatedCounter } from "@/components/animated-counter"
 import { getProfile, type Profile } from "@/lib/db"
-import {
-  Trophy, Flame, Clock, Zap, Target, Loader2,
-} from "lucide-react"
+import { Trophy, Flame, Clock, Zap, Target, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -39,7 +37,6 @@ export default function ProfilePage() {
         const { data: { user } } = await supabase.auth.getUser()
 
         if (user) {
-          // Monthly data (last 6 months)
           const sixMonthsAgo = new Date()
           sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5)
           const { data: sessions } = await supabase
@@ -48,8 +45,8 @@ export default function ProfilePage() {
             .eq("user_id", user.id)
             .gte("completed_at", sixMonthsAgo.toISOString())
 
+          const months = ["Jan","Fév","Mar","Avr","Mai","Jun","Jul","Aoû","Sep","Oct","Nov","Déc"]
           const monthMap: Record<string, { xp: number; hours: number }> = {}
-          const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
           for (let i = 5; i >= 0; i--) {
             const d = new Date()
             d.setMonth(d.getMonth() - i)
@@ -64,7 +61,6 @@ export default function ProfilePage() {
           }
           setMonthlyData(Object.entries(monthMap).map(([month, v]) => ({ month, ...v })))
 
-          // Heatmap (last 84 days)
           const today = new Date()
           const heatmapArr: { date: string; count: number }[] = []
           const { data: heatSessions } = await supabase
@@ -103,18 +99,18 @@ export default function ProfilePage() {
   const xpProgress = p ? (p.xp / p.xp_to_next_level) * 100 : 0
 
   const stats = [
-    { label: "Total Sessions", value: p?.sessions_completed ?? 0, icon: Target },
-    { label: "Focus Hours", value: Math.round(p?.total_focus_hours ?? 0), icon: Clock },
-    { label: "Current Streak", value: p?.streak ?? 0, icon: Flame, suffix: " days" },
-    { label: "Productivity", value: p?.productivity_score ?? 0, icon: Trophy, suffix: "%" },
+    { label: "Sessions totales", value: p?.sessions_completed ?? 0, icon: Target },
+    { label: "Heures de focus", value: Math.round(p?.total_focus_hours ?? 0), icon: Clock },
+    { label: "Série en cours", value: p?.streak ?? 0, icon: Flame, suffix: " jours" },
+    { label: "Productivité", value: p?.productivity_score ?? 0, icon: Trophy, suffix: "%" },
   ]
 
-  const displayName = p?.name ?? "User"
+  const displayName = p?.name ?? "Utilisateur"
   const initials = displayName.slice(0, 2).toUpperCase()
 
   return (
     <div className="space-y-6">
-      {/* Profile Header */}
+      {/* En-tête du profil */}
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
         <GlassCard className="p-6 sm:p-8" glow="purple">
           <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
@@ -130,23 +126,26 @@ export default function ProfilePage() {
               <div>
                 <h1 className="text-2xl font-bold">{displayName}</h1>
                 <p className="text-muted-foreground text-sm">
-                  Member since {p?.joined_date ? new Date(p.joined_date).toLocaleDateString("en-US", { month: "long", year: "numeric" }) : "—"}
+                  Membre depuis{" "}
+                  {p?.joined_date
+                    ? new Date(p.joined_date).toLocaleDateString("fr-FR", { month: "long", year: "numeric" })
+                    : "—"}
                 </p>
               </div>
             </div>
             <div className="sm:ml-auto sm:text-right">
               <div className="mb-2 flex items-center justify-between sm:justify-end gap-2">
-                <span className="text-sm text-muted-foreground">Level {p?.level}</span>
+                <span className="text-sm text-muted-foreground">Niveau {p?.level}</span>
                 <span className="text-sm font-medium">{p?.xp?.toLocaleString()} / {p?.xp_to_next_level?.toLocaleString()} XP</span>
               </div>
               <Progress value={xpProgress} className="h-2 w-48" />
-              <p className="mt-1 text-xs text-muted-foreground">{Math.round(xpProgress)}% to Level {(p?.level ?? 1) + 1}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{Math.round(xpProgress)}% vers le niveau {(p?.level ?? 1) + 1}</p>
             </div>
           </div>
         </GlassCard>
       </motion.div>
 
-      {/* Stats Grid */}
+      {/* Grille de stats */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat, i) => (
           <motion.div key={stat.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 + i * 0.05 }}>
@@ -164,16 +163,16 @@ export default function ProfilePage() {
         ))}
       </div>
 
-      {/* Monthly Progress */}
+      {/* Progression mensuelle */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
         <GlassCard className="p-6">
           <div className="flex items-center gap-2 mb-4">
             <Zap className="h-5 w-5 text-yellow-400" />
-            <h2 className="font-semibold">Monthly Progress</h2>
+            <h2 className="font-semibold">Progression mensuelle</h2>
           </div>
           {monthlyData.every((d) => d.xp === 0) ? (
             <div className="flex h-40 items-center justify-center text-muted-foreground text-sm">
-              No data yet. Complete focus sessions to see progress.
+              Aucune donnée. Complétez des sessions focus pour voir vos progrès.
             </div>
           ) : (
             <ResponsiveContainer width="100%" height={200}>
@@ -195,31 +194,32 @@ export default function ProfilePage() {
         </GlassCard>
       </motion.div>
 
-      {/* Activity Heatmap */}
+      {/* Carte de chaleur d'activité */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
         <GlassCard className="p-6">
           <div className="flex items-center gap-2 mb-4">
             <Target className="h-5 w-5 text-cyan-400" />
-            <h2 className="font-semibold">Activity Heatmap</h2>
+            <h2 className="font-semibold">Carte d&apos;activité</h2>
           </div>
           <div className="grid grid-cols-[repeat(12,1fr)] gap-1 overflow-x-auto">
             {heatmap.map((item) => (
               <div
                 key={item.date}
                 className={cn("aspect-square rounded-sm cursor-default transition-colors", getHeatmapColor(item.count))}
-                title={`${item.date}: ${item.count} session${item.count !== 1 ? "s" : ""}`}
+                title={`${item.date} : ${item.count} session${item.count !== 1 ? "s" : ""}`}
               />
             ))}
           </div>
           <div className="flex items-center gap-2 mt-3">
-            <span className="text-xs text-muted-foreground">Less</span>
+            <span className="text-xs text-muted-foreground">Moins</span>
             {[0, 1, 2, 3, 4].map((n) => (
               <div key={n} className={cn("h-3 w-3 rounded-sm", getHeatmapColor(n))} />
             ))}
-            <span className="text-xs text-muted-foreground">More</span>
+            <span className="text-xs text-muted-foreground">Plus</span>
           </div>
         </GlassCard>
       </motion.div>
     </div>
   )
 }
+

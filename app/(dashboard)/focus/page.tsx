@@ -6,16 +6,8 @@ import { GlassCard } from "@/components/ui/glass-card"
 import { Button } from "@/components/ui/button"
 import { sessionTypes } from "@/lib/db"
 import {
-  Play,
-  Pause,
-  RotateCcw,
-  Maximize2,
-  Minimize2,
-  Volume2,
-  VolumeX,
-  Zap,
-  Clock,
-  Target,
+  Play, Pause, RotateCcw, Maximize2, Minimize2,
+  Volume2, VolumeX, Zap, Clock, Target,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -40,7 +32,7 @@ export default function FocusPage() {
 
   const handleStart = () => setIsRunning(true)
   const handlePause = () => setIsRunning(false)
-  
+
   const handleReset = useCallback(() => {
     setIsRunning(false)
     setTimeLeft(selectedSession.duration * 60)
@@ -64,7 +56,6 @@ export default function FocusPage() {
 
   useEffect(() => {
     let interval: NodeJS.Timeout
-
     if (isRunning && timeLeft > 0) {
       interval = setInterval(() => {
         setTimeLeft((prev) => prev - 1)
@@ -76,7 +67,6 @@ export default function FocusPage() {
       setTotalXpEarned((prev) => prev + xpEarned)
       handleReset()
     }
-
     return () => clearInterval(interval)
   }, [isRunning, timeLeft, selectedSession.duration, handleReset])
 
@@ -90,7 +80,7 @@ export default function FocusPage() {
 
   return (
     <div className="relative min-h-[calc(100vh-8rem)]">
-      {/* Ambient Background Glow */}
+      {/* Lueur d'ambiance */}
       <AnimatePresence>
         {isRunning && (
           <motion.div
@@ -105,15 +95,15 @@ export default function FocusPage() {
         )}
       </AnimatePresence>
 
-      {/* Header */}
+      {/* En-tête */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
       >
         <div>
-          <h1 className="text-2xl font-bold sm:text-3xl">Focus Session</h1>
-          <p className="text-muted-foreground">Stay focused and earn XP</p>
+          <h1 className="text-2xl font-bold sm:text-3xl">Session Focus</h1>
+          <p className="text-muted-foreground">Restez concentré et gagnez des XP</p>
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -122,11 +112,7 @@ export default function FocusPage() {
             onClick={() => setSoundEnabled(!soundEnabled)}
             className="border-white/[0.1] bg-white/[0.03] hover:bg-white/[0.06]"
           >
-            {soundEnabled ? (
-              <Volume2 className="h-4 w-4" />
-            ) : (
-              <VolumeX className="h-4 w-4" />
-            )}
+            {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
           </Button>
           <Button
             variant="outline"
@@ -134,16 +120,12 @@ export default function FocusPage() {
             onClick={toggleFullscreen}
             className="border-white/[0.1] bg-white/[0.03] hover:bg-white/[0.06]"
           >
-            {isFullscreen ? (
-              <Minimize2 className="h-4 w-4" />
-            ) : (
-              <Maximize2 className="h-4 w-4" />
-            )}
+            {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
           </Button>
         </div>
       </motion.div>
 
-      {/* Session Type Selector */}
+      {/* Sélecteur de type de session */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -163,14 +145,14 @@ export default function FocusPage() {
           >
             <Clock className="h-4 w-4" />
             {session.name}
-            <span className="text-xs opacity-75">{session.duration}m</span>
+            <span className="text-xs opacity-75">{session.duration} min</span>
           </button>
         ))}
       </motion.div>
 
-      {/* Main Timer */}
+      {/* Minuteur principal */}
       <div className="flex flex-col items-center justify-center gap-8 lg:flex-row lg:items-start lg:gap-12">
-        {/* Timer Circle */}
+        {/* Cercle minuteur */}
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -179,32 +161,19 @@ export default function FocusPage() {
         >
           <GlassCard className="p-8 sm:p-12" glow={isRunning ? "purple" : "none"}>
             <div className="relative flex items-center justify-center">
-              {/* Timer SVG */}
               <svg className="h-72 w-72 sm:h-80 sm:w-80 -rotate-90">
-                {/* Background circle */}
                 <circle
-                  cx="50%"
-                  cy="50%"
-                  r="140"
-                  fill="none"
-                  stroke="rgba(255,255,255,0.05)"
-                  strokeWidth="12"
+                  cx="50%" cy="50%" r="140"
+                  fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="12"
                 />
-                {/* Progress circle */}
                 <motion.circle
-                  cx="50%"
-                  cy="50%"
-                  r="140"
-                  fill="none"
-                  stroke="url(#timerGradient)"
-                  strokeWidth="12"
+                  cx="50%" cy="50%" r="140"
+                  fill="none" stroke="url(#timerGradient)" strokeWidth="12"
                   strokeLinecap="round"
                   strokeDasharray={circumference}
                   strokeDashoffset={circumference - (progress / 100) * circumference}
                   initial={{ strokeDashoffset: circumference }}
-                  animate={{
-                    strokeDashoffset: circumference - (progress / 100) * circumference,
-                  }}
+                  animate={{ strokeDashoffset: circumference - (progress / 100) * circumference }}
                   transition={{ duration: 0.5 }}
                 />
                 <defs>
@@ -215,7 +184,6 @@ export default function FocusPage() {
                 </defs>
               </svg>
 
-              {/* Timer Display */}
               <div className="absolute inset-0 flex flex-col items-center justify-center">
                 <motion.span
                   key={timeLeft}
@@ -226,12 +194,12 @@ export default function FocusPage() {
                   {formatTime(timeLeft)}
                 </motion.span>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  {selectedSession.name} Session
+                  Session {selectedSession.name}
                 </p>
               </div>
             </div>
 
-            {/* Controls */}
+            {/* Contrôles */}
             <div className="mt-8 flex items-center justify-center gap-4">
               <Button
                 variant="outline"
@@ -251,28 +219,19 @@ export default function FocusPage() {
                     : "bg-gradient-to-r from-purple-500 to-cyan-500 hover:opacity-90"
                 )}
               >
-                {isRunning ? (
-                  <Pause className="h-6 w-6" />
-                ) : (
-                  <Play className="h-6 w-6 ml-1" />
-                )}
+                {isRunning ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6 ml-1" />}
               </Button>
 
-              <div className="h-12 w-12" /> {/* Spacer for symmetry */}
+              <div className="h-12 w-12" />
             </div>
           </GlassCard>
         </motion.div>
 
-        {/* Side Stats */}
+        {/* Stats latérales */}
         <div className="w-full max-w-sm space-y-4">
-          {/* Session Stats */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.3 }}
-          >
+          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}>
             <GlassCard className="p-5">
-              <h3 className="mb-4 font-semibold">Today&apos;s Progress</h3>
+              <h3 className="mb-4 font-semibold">Progrès du jour</h3>
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -288,7 +247,7 @@ export default function FocusPage() {
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/20">
                       <Zap className="h-5 w-5 text-cyan-400" />
                     </div>
-                    <span className="text-sm text-muted-foreground">XP Earned</span>
+                    <span className="text-sm text-muted-foreground">XP gagnés</span>
                   </div>
                   <span className="text-xl font-bold text-emerald-400">+{totalXpEarned}</span>
                 </div>
@@ -297,27 +256,22 @@ export default function FocusPage() {
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/20">
                       <Clock className="h-5 w-5 text-amber-400" />
                     </div>
-                    <span className="text-sm text-muted-foreground">Focus Time</span>
+                    <span className="text-sm text-muted-foreground">Temps de focus</span>
                   </div>
                   <span className="text-xl font-bold">
                     {Math.floor((sessionsCompleted * selectedSession.duration) / 60)}h{" "}
-                    {(sessionsCompleted * selectedSession.duration) % 60}m
+                    {(sessionsCompleted * selectedSession.duration) % 60} min
                   </span>
                 </div>
               </div>
             </GlassCard>
           </motion.div>
 
-          {/* Lofi Music Section */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.4 }}
-          >
+          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }}>
             <GlassCard className="p-5">
-              <h3 className="mb-4 font-semibold">Ambient Sounds</h3>
+              <h3 className="mb-4 font-semibold">Sons d&apos;ambiance</h3>
               <div className="grid grid-cols-2 gap-2">
-                {["Rain", "Cafe", "Forest", "Ocean"].map((sound) => (
+                {["Pluie", "Café", "Forêt", "Océan"].map((sound) => (
                   <button
                     key={sound}
                     className="rounded-xl bg-white/[0.03] px-4 py-3 text-sm text-muted-foreground transition-all hover:bg-white/[0.06] hover:text-white"
@@ -329,16 +283,11 @@ export default function FocusPage() {
             </GlassCard>
           </motion.div>
 
-          {/* Tips */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.5 }}
-          >
+          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5 }}>
             <GlassCard className="p-5">
-              <h3 className="mb-2 font-semibold">Focus Tip</h3>
+              <h3 className="mb-2 font-semibold">Conseil focus</h3>
               <p className="text-sm text-muted-foreground">
-                Turn off notifications and close unnecessary tabs to minimize distractions during your focus session.
+                Désactivez les notifications et fermez les onglets inutiles pour minimiser les distractions pendant votre session.
               </p>
             </GlassCard>
           </motion.div>
@@ -347,3 +296,4 @@ export default function FocusPage() {
     </div>
   )
 }
+

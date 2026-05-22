@@ -13,34 +13,21 @@ import {
   type FocusSession,
 } from "@/lib/db"
 import {
-  Flame,
-  Target,
-  Clock,
-  Zap,
-  TrendingUp,
-  Timer,
-  ChevronRight,
-  Loader2,
+  Flame, Target, Clock, Zap, TrendingUp, Timer, ChevronRight, Loader2,
 } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts"
 
 function formatTimeAgo(dateString: string) {
   const date = new Date(dateString)
   const now = new Date()
   const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60))
-  if (diffInMinutes < 60) return `${diffInMinutes}m ago`
-  if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`
-  return `${Math.floor(diffInMinutes / 1440)}d ago`
+  if (diffInMinutes < 60) return `il y a ${diffInMinutes} min`
+  if (diffInMinutes < 1440) return `il y a ${Math.floor(diffInMinutes / 60)}h`
+  return `il y a ${Math.floor(diffInMinutes / 1440)}j`
 }
 
 export default function DashboardPage() {
@@ -71,15 +58,15 @@ export default function DashboardPage() {
   const p = profile
   const statCards = [
     {
-      title: "Productivity Score",
+      title: "Score de productivité",
       value: p?.productivity_score ?? 0,
       suffix: "%",
       icon: Target,
       color: "from-purple-500 to-purple-600",
-      description: "Your score",
+      description: "Votre score",
     },
     {
-      title: "Focus Hours",
+      title: "Heures de focus",
       value: Math.round(p?.total_focus_hours ?? 0),
       suffix: "h",
       icon: Clock,
@@ -87,20 +74,20 @@ export default function DashboardPage() {
       description: "Total",
     },
     {
-      title: "Current Streak",
+      title: "Série en cours",
       value: p?.streak ?? 0,
-      suffix: " days",
+      suffix: " jours",
       icon: Flame,
       color: "from-orange-500 to-red-500",
-      description: "Keep it going!",
+      description: "Continuez !",
     },
     {
-      title: "Total XP",
+      title: "XP total",
       value: p?.xp ?? 0,
       suffix: "",
       icon: Zap,
       color: "from-yellow-500 to-amber-500",
-      description: `Level ${p?.level ?? 1}`,
+      description: `Niveau ${p?.level ?? 1}`,
     },
   ]
 
@@ -108,30 +95,30 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* En-tête */}
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold sm:text-3xl">
-              Welcome back, {p?.name?.split(" ")[0] ?? "there"} 👋
+              Bon retour, {p?.name?.split(" ")[0] ?? "là"} 👋
             </h1>
-            <p className="text-muted-foreground mt-1">Here&apos;s your productivity overview</p>
+            <p className="text-muted-foreground mt-1">Votre aperçu de productivité</p>
           </div>
           <Link href="/focus">
             <Button className="bg-gradient-to-r from-purple-500 to-cyan-500 text-white border-0 hover:opacity-90">
               <Timer className="mr-2 h-4 w-4" />
-              Start Focus
+              Démarrer le focus
             </Button>
           </Link>
         </div>
       </motion.div>
 
-      {/* XP Progress */}
+      {/* Progression XP */}
       {p && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
           <GlassCard className="p-4">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-muted-foreground">Level {p.level} → {p.level + 1}</span>
+              <span className="text-sm text-muted-foreground">Niveau {p.level} → {p.level + 1}</span>
               <span className="text-sm font-medium">{(p.xp ?? 0).toLocaleString()} / {(p.xp_to_next_level ?? 1000).toLocaleString()} XP</span>
             </div>
             <Progress value={xpProgress} className="h-2" />
@@ -139,7 +126,7 @@ export default function DashboardPage() {
         </motion.div>
       )}
 
-      {/* Stat Cards */}
+      {/* Cartes de stats */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {statCards.map((card, i) => (
           <motion.div
@@ -167,18 +154,19 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* Charts + Sessions */}
+      {/* Graphiques + Sessions */}
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Weekly Activity Chart */}
+        {/* Graphique d'activité hebdomadaire */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
           <GlassCard className="p-6">
             <div className="flex items-center gap-2 mb-4">
               <TrendingUp className="h-5 w-5 text-purple-400" />
-              <h2 className="font-semibold">Weekly Activity</h2>
+              <h2 className="font-semibold">Activité de la semaine</h2>
             </div>
             {weeklyData.every((d) => d.hours === 0) ? (
               <div className="flex h-40 items-center justify-center text-muted-foreground text-sm">
-                No sessions yet this week. <Link href="/focus" className="ml-1 text-purple-400 hover:underline">Start one!</Link>
+                Aucune session cette semaine.{" "}
+                <Link href="/focus" className="ml-1 text-purple-400 hover:underline">Commencez !</Link>
               </div>
             ) : (
               <ResponsiveContainer width="100%" height={200}>
@@ -196,32 +184,32 @@ export default function DashboardPage() {
                     contentStyle={{ background: "rgba(0,0,0,0.8)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px" }}
                     labelStyle={{ color: "white" }}
                   />
-                  <Area type="monotone" dataKey="hours" stroke="#a855f7" strokeWidth={2} fill="url(#colorHours)" name="Hours" />
+                  <Area type="monotone" dataKey="hours" stroke="#a855f7" strokeWidth={2} fill="url(#colorHours)" name="Heures" />
                 </AreaChart>
               </ResponsiveContainer>
             )}
           </GlassCard>
         </motion.div>
 
-        {/* Recent Sessions */}
+        {/* Sessions récentes */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
           <GlassCard className="p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Timer className="h-5 w-5 text-cyan-400" />
-                <h2 className="font-semibold">Recent Sessions</h2>
+                <h2 className="font-semibold">Sessions récentes</h2>
               </div>
               <Link href="/focus">
                 <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-white">
-                  New <ChevronRight className="h-4 w-4 ml-1" />
+                  Nouvelle <ChevronRight className="h-4 w-4 ml-1" />
                 </Button>
               </Link>
             </div>
             {sessions.length === 0 ? (
               <div className="flex h-40 flex-col items-center justify-center text-muted-foreground text-sm gap-2">
                 <Timer className="h-8 w-8 opacity-30" />
-                <p>No sessions yet.</p>
-                <Link href="/focus" className="text-purple-400 hover:underline text-xs">Start your first focus session →</Link>
+                <p>Aucune session pour l&apos;instant.</p>
+                <Link href="/focus" className="text-purple-400 hover:underline text-xs">Commencez votre première session →</Link>
               </div>
             ) : (
               <div className="space-y-3">
@@ -232,7 +220,7 @@ export default function DashboardPage() {
                       <p className="text-xs text-muted-foreground">{formatTimeAgo(session.completed_at)}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-medium">{session.duration}m</p>
+                      <p className="text-sm font-medium">{session.duration} min</p>
                       <p className="text-xs text-yellow-400">+{session.xp_earned} XP</p>
                     </div>
                   </div>
@@ -245,3 +233,4 @@ export default function DashboardPage() {
     </div>
   )
 }
+
