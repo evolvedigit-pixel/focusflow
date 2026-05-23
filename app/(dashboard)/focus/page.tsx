@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import { useState, useEffect, useCallback } from "react"
 import { motion, AnimatePresence } from "framer-motion"
@@ -7,12 +7,14 @@ import { Button } from "@/components/ui/button"
 import { sessionTypes, createFocusSession } from "@/lib/db"
 import {
   Play, Pause, RotateCcw, Maximize2, Minimize2,
-  Volume2, VolumeX, Zap, Clock, Target,
+  Volume2, VolumeX, Zap, Clock, Target, Edit3,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export default function FocusPage() {
   const [selectedSession, setSelectedSession] = useState(sessionTypes[0])
+  const [customDuration, setCustomDuration] = useState(60)
+  const [editingDuration, setEditingDuration] = useState(false)
   const [timeLeft, setTimeLeft] = useState(selectedSession.duration * 60)
   const [isRunning, setIsRunning] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
@@ -20,7 +22,9 @@ export default function FocusPage() {
   const [sessionsCompleted, setSessionsCompleted] = useState(0)
   const [totalXpEarned, setTotalXpEarned] = useState(0)
 
-  const totalTime = selectedSession.duration * 60
+  const isCreative = selectedSession.id === "creative"
+  const activeDuration = isCreative ? customDuration : selectedSession.duration
+  const totalTime = activeDuration * 60
   const progress = ((totalTime - timeLeft) / totalTime) * 100
   const circumference = 2 * Math.PI * 140
 
@@ -35,13 +39,24 @@ export default function FocusPage() {
 
   const handleReset = useCallback(() => {
     setIsRunning(false)
-    setTimeLeft(selectedSession.duration * 60)
-  }, [selectedSession.duration])
+    const dur = selectedSession.id === "creative" ? customDuration : selectedSession.duration
+    setTimeLeft(dur * 60)
+  }, [selectedSession.id, selectedSession.duration, customDuration])
 
   const handleSessionSelect = (session: typeof sessionTypes[0]) => {
     setSelectedSession(session)
-    setTimeLeft(session.duration * 60)
+    const dur = session.id === "creative" ? customDuration : session.duration
+    setTimeLeft(dur * 60)
     setIsRunning(false)
+    setEditingDuration(false)
+  }
+
+  const handleApplyCustomDuration = () => {
+    if (customDuration < 1) setCustomDuration(1)
+    if (customDuration > 480) setCustomDuration(480)
+    setTimeLeft(customDuration * 60)
+    setIsRunning(false)
+    setEditingDuration(false)
   }
 
   const toggleFullscreen = () => {
@@ -63,18 +78,17 @@ export default function FocusPage() {
     } else if (timeLeft === 0 && isRunning) {
       setIsRunning(false)
       setSessionsCompleted((prev) => prev + 1)
-      const xpEarned = Math.round(selectedSession.duration * 2.5)
+      const xpEarned = Math.round(activeDuration * 2.5)
       setTotalXpEarned((prev) => prev + xpEarned)
-      // Sauvegarde dans Supabase
       createFocusSession({
         session_type: selectedSession.id,
-        duration: selectedSession.duration,
+        duration: activeDuration,
         xp_earned: xpEarned,
       }).catch(console.error)
       handleReset()
     }
     return () => clearInterval(interval)
-  }, [isRunning, timeLeft, selectedSession.duration, selectedSession.id, handleReset])
+  }, [isRunning, timeLeft, activeDuration, selectedSession.id, handleReset])
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -86,7 +100,6 @@ export default function FocusPage() {
 
   return (
     <div className="relative min-h-[calc(100vh-8rem)]">
-      {/* Lueur d'ambiance */}
       <AnimatePresence>
         {isRunning && (
           <motion.div
@@ -101,7 +114,6 @@ export default function FocusPage() {
         )}
       </AnimatePresence>
 
-      {/* En-tête */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -136,7 +148,7 @@ export default function FocusPage() {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="mb-8 flex flex-wrap gap-3"
+        className="mb-4 flex flex-wrap gap-3"
       >
         {sessionTypes.map((session) => (
           <button
@@ -151,14 +163,53 @@ export default function FocusPage() {
           >
             <Clock className="h-4 w-4" />
             {session.name}
-            <span className="text-xs opacity-75">{session.duration} min</span>
+            <span className="text-xs opacity-75">
+              {session.id === "creative" ? `${customDuration} min` : `${session.duration} min`}
+            </span>
+            {session.id === "creative" && (
+              <Edit3 className="h-3 w-3 opacity-70" />
+            )}
           </button>
         ))}
       </motion.div>
 
+      {/* Champ durée personnalisée pour Créatif */}
+      <AnimatePresence>
+        {isCreative && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="mb-6"
+          >
+            <div className="flex items-center gap-3 p-4 rounded-2xl bg-white/[0.03] border border-white/[0.07] w-fit">
+              <span className="text-sm text-white/50">Durée personnalisée :</span>
+              <input
+                type="number"
+                min={1}
+                max={480}
+                value={customDuration}
+                onChange={(e) => setCustomDuration(Number(e.target.value))}
+                disabled={isRunning}
+                className="w-20 bg-white/[0.06] border border-white/[0.1] rounded-lg px-3 py-1.5 text-sm text-white text-center focus:outline-none focus:border-amber-500/50 disabled:opacity-40"
+              />
+              <span className="text-sm text-white/50">min</span>
+              <motion.button
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={handleApplyCustomDuration}
+                disabled={isRunning}
+                className="px-4 py-1.5 rounded-lg text-xs font-medium text-white bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 disabled:opacity-40 transition-all"
+              >
+                Appliquer
+              </motion.button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Minuteur principal */}
       <div className="flex flex-col items-center justify-center gap-8 lg:flex-row lg:items-start lg:gap-12">
-        {/* Cercle minuteur */}
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -201,11 +252,11 @@ export default function FocusPage() {
                 </motion.span>
                 <p className="mt-2 text-sm text-muted-foreground">
                   Session {selectedSession.name}
+                  {isCreative && <span className="ml-1 text-amber-400">· {customDuration} min</span>}
                 </p>
               </div>
             </div>
 
-            {/* Contrôles */}
             <div className="mt-8 flex items-center justify-center gap-4">
               <Button
                 variant="outline"
@@ -233,7 +284,6 @@ export default function FocusPage() {
           </GlassCard>
         </motion.div>
 
-        {/* Stats latérales */}
         <div className="w-full max-w-sm space-y-4">
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}>
             <GlassCard className="p-5">
@@ -265,8 +315,8 @@ export default function FocusPage() {
                     <span className="text-sm text-muted-foreground">Temps de focus</span>
                   </div>
                   <span className="text-xl font-bold">
-                    {Math.floor((sessionsCompleted * selectedSession.duration) / 60)}h{" "}
-                    {(sessionsCompleted * selectedSession.duration) % 60} min
+                    {Math.floor((sessionsCompleted * activeDuration) / 60)}h{" "}
+                    {(sessionsCompleted * activeDuration) % 60} min
                   </span>
                 </div>
               </div>
@@ -302,4 +352,3 @@ export default function FocusPage() {
     </div>
   )
 }
-
