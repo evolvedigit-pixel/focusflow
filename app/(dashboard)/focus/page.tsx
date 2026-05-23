@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { GlassCard } from "@/components/ui/glass-card"
 import { Button } from "@/components/ui/button"
-import { sessionTypes } from "@/lib/db"
+import { sessionTypes, createFocusSession } from "@/lib/db"
 import {
   Play, Pause, RotateCcw, Maximize2, Minimize2,
   Volume2, VolumeX, Zap, Clock, Target,
@@ -65,10 +65,16 @@ export default function FocusPage() {
       setSessionsCompleted((prev) => prev + 1)
       const xpEarned = Math.round(selectedSession.duration * 2.5)
       setTotalXpEarned((prev) => prev + xpEarned)
+      // Sauvegarde dans Supabase
+      createFocusSession({
+        type: selectedSession.id,
+        duration: selectedSession.duration,
+        xp_earned: xpEarned,
+      }).catch(console.error)
       handleReset()
     }
     return () => clearInterval(interval)
-  }, [isRunning, timeLeft, selectedSession.duration, handleReset])
+  }, [isRunning, timeLeft, selectedSession.duration, selectedSession.id, handleReset])
 
   useEffect(() => {
     const handleFullscreenChange = () => {
