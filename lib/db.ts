@@ -20,7 +20,7 @@ export type Todo = {
   user_id: string
   title: string
   category: string
-  priority: 'low' | 'medium' | 'high'
+  priority: 'Faible' | 'Moyen' | '�lev�'
   due_date: string | null
   completed: boolean
   xp_reward: number
@@ -50,25 +50,25 @@ export type FocusSession = {
 
 // ─── Static config (no longer from mock-data) ────────────
 export const taskCategories = [
-  { id: 'study', name: 'Study', color: '#8b5cf6' },
-  { id: 'work', name: 'Work', color: '#06b6d4' },
-  { id: 'fitness', name: 'Fitness', color: '#22c55e' },
-  { id: 'personal', name: 'Personal', color: '#f59e0b' },
-  { id: 'meeting', name: 'Meeting', color: '#ec4899' },
-  { id: 'creative', name: 'Creative', color: '#ef4444' },
+  { id: '�tudes', name: '�tudes', color: '#8b5cf6' },
+  { id: 'Travail', name: 'Travail', color: '#06b6d4' },
+  { id: 'Sport', name: 'Sport', color: '#22c55e' },
+  { id: 'Personnel', name: 'Personnel', color: '#f59e0b' },
+  { id: 'R�union', name: 'R�union', color: '#ec4899' },
+  { id: 'Cr�atif', name: 'Cr�atif', color: '#ef4444' },
 ]
 
 export const priorities = [
-  { id: 'low', name: 'Low', color: '#22c55e' },
-  { id: 'medium', name: 'Medium', color: '#f59e0b' },
-  { id: 'high', name: 'High', color: '#ef4444' },
+  { id: 'Faible', name: 'Faible', color: '#22c55e' },
+  { id: 'Moyen', name: 'Moyen', color: '#f59e0b' },
+  { id: '�lev�', name: '�lev�', color: '#ef4444' },
 ]
 
 export const sessionTypes = [
-  { id: 'deep-work', name: 'Deep Work', duration: 45, color: 'from-purple-500 to-blue-500' },
+  { id: 'deep-work', name: 'Travail profond', duration: 45, color: 'from-purple-500 to-blue-500' },
   { id: 'pomodoro', name: 'Pomodoro', duration: 25, color: 'from-cyan-500 to-teal-500' },
-  { id: 'study', name: 'Study', duration: 50, color: 'from-pink-500 to-rose-500' },
-  { id: 'creative', name: 'Creative', duration: 60, color: 'from-amber-500 to-orange-500' },
+  { id: '�tudes', name: '�tudes', duration: 50, color: 'from-pink-500 to-rose-500' },
+  { id: 'Cr�atif', name: 'Cr�atif', duration: 60, color: 'from-amber-500 to-orange-500' },
 ]
 
 // ─── Profile ──────────────────────────────────────────────
