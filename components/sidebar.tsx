@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
@@ -21,7 +21,7 @@ import type { Profile } from "@/lib/db"
 
 const navItems = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Tableau de bord" },
-  { href: "/planner", icon: CalendarDays, label: "Planificateur" },
+  { href: "/planner", icon: CalendarDays, label: "Planificateur" },`n  { href: "/tasks", icon: CheckSquare, label: "Taches" },
   { href: "/focus", icon: Timer, label: "Focus" },
   { href: "/leaderboard", icon: Trophy, label: "Classement" },
   { href: "/profile", icon: User, label: "Profil" },
