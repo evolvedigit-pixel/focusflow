@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useEffect, useCallback } from "react"
 import { motion, AnimatePresence } from "framer-motion"
@@ -67,7 +67,7 @@ export default function FocusPage() {
       setTotalXpEarned((prev) => prev + xpEarned)
       // Sauvegarde dans Supabase
       createFocusSession({
-        type: selectedSession.id,
+        session_type: selectedSession.id,
         duration: selectedSession.duration,
         xp_earned: xpEarned,
       }).catch(console.error)
@@ -302,3 +302,4 @@ export default function FocusPage() {
     </div>
   )
 }
+

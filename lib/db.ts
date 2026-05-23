@@ -42,7 +42,7 @@ export type PlannerTask = {
 export type FocusSession = {
   id: string
   user_id: string
-  type: string
+  session_type: string
   duration: number
   xp_earned: number
   completed_at: string
@@ -256,3 +256,4 @@ export async function getWeeklyActivity(): Promise<{ day: string; hours: number;
 
   return result
 }
+
