@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useEffect, useCallback, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
@@ -296,7 +296,7 @@ export default function PlannerPage() {
         </div>
 
         {/* Grille scrollable */}
-        <div ref={gridRef} className="overflow-y-auto" style={{ maxHeight: "420px" }}>
+        <div ref={gridRef} className="overflow-y-auto" style={{ maxHeight: "650px" }}>
           {loadingTasks ? (
             <div className="flex h-48 items-center justify-center">
               <div className="flex flex-col items-center gap-3">
@@ -739,3 +739,4 @@ function FormActions({ label, onSubmit, onCancel, accent }: {
     </div>
   )
 }
+
