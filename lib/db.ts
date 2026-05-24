@@ -1,9 +1,10 @@
-﻿import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/supabase/client'
 
 // ─── Types ────────────────────────────────────────────────
 export type Profile = {
   id: string
   name: string | null
+  full_name: string | null
   avatar_url: string | null
   level: number
   xp: number
@@ -20,7 +21,7 @@ export type Todo = {
   user_id: string
   title: string
   category: string
-  priority: 'Faible' | 'Moyen' | 'Eleve'
+  priority: 'low' | 'medium' | 'high'
   due_date: string | null
   completed: boolean
   xp_reward: number
@@ -48,30 +49,50 @@ export type FocusSession = {
   completed_at: string
 }
 
-// ─── Static config (no longer from mock-data) ────────────
+// ─── Static config ────────────────────────────────────────
 export const taskCategories = [
-  { id: 'study', name: 'Etudes', color: '#8b5cf6' },
+  { id: 'study', name: 'Études', color: '#8b5cf6' },
   { id: 'work', name: 'Travail', color: '#06b6d4' },
-  { id: 'Sport', name: 'Sport', color: '#22c55e' },
-  { id: 'Personnel', name: 'Personnel', color: '#f59e0b' },
-  { id: 'Reunion', name: 'Reunion', color: '#ec4899' },
-  { id: 'creative', name: 'Creatif', color: '#ef4444' },
+  { id: 'fitness', name: 'Sport', color: '#22c55e' },
+  { id: 'personal', name: 'Personnel', color: '#f59e0b' },
+  { id: 'meeting', name: 'Réunion', color: '#ec4899' },
+  { id: 'creative', name: 'Créatif', color: '#ef4444' },
 ]
 
 export const priorities = [
-  { id: 'Faible', name: 'Faible', color: '#22c55e' },
-  { id: 'Moyen', name: 'Moyen', color: '#f59e0b' },
-  { id: 'Eleve', name: 'Eleve', color: '#ef4444' },
+  { id: 'low', name: 'Faible', color: '#22c55e' },
+  { id: 'medium', name: 'Moyen', color: '#f59e0b' },
+  { id: 'high', name: 'Élevé', color: '#ef4444' },
 ]
 
 export const sessionTypes = [
   { id: 'deep-work', name: 'Travail profond', duration: 45, color: 'from-purple-500 to-blue-500' },
   { id: 'pomodoro', name: 'Pomodoro', duration: 25, color: 'from-cyan-500 to-teal-500' },
-  { id: 'study', name: 'Etudes', duration: 50, color: 'from-pink-500 to-rose-500' },
-  { id: 'creative', name: 'Creatif', duration: 60, color: 'from-amber-500 to-orange-500' },
+  { id: 'study', name: 'Études', duration: 50, color: 'from-pink-500 to-rose-500' },
+  { id: 'creative', name: 'Créatif', duration: 60, color: 'from-amber-500 to-orange-500' },
 ]
 
 // ─── Profile ──────────────────────────────────────────────
+
+// Normalise les données du profil depuis Supabase
+function normalizeProfile(data: any): Profile | null {
+  if (!data) return null
+  return {
+    id: data.id,
+    name: data.name ?? data.full_name ?? null,
+    full_name: data.full_name ?? data.name ?? null,
+    avatar_url: data.avatar_url ?? null,
+    level: data.level ?? 1,
+    xp: data.xp ?? 0,
+    xp_to_next_level: data.xp_to_next_level ?? 1000,
+    streak: data.streak ?? 0,
+    total_focus_hours: data.total_focus_hours ?? 0,
+    sessions_completed: data.sessions_completed ?? 0,
+    productivity_score: data.productivity_score ?? 0,
+    joined_date: data.joined_date ?? data.created_at ?? new Date().toISOString(),
+  }
+}
+
 export async function getProfile(): Promise<Profile | null> {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -81,7 +102,7 @@ export async function getProfile(): Promise<Profile | null> {
     .select('*')
     .eq('id', user.id)
     .single()
-  return data
+  return normalizeProfile(data)
 }
 
 export async function updateProfile(updates: Partial<Profile>) {
@@ -140,7 +161,7 @@ export async function deleteTodo(id: string) {
 export function getWeekStart(offsetWeeks = 0): string {
   const now = new Date()
   const day = now.getDay()
-  const diff = day === 0 ? -6 : 1 - day // Monday
+  const diff = day === 0 ? -6 : 1 - day
   const monday = new Date(now)
   monday.setDate(now.getDate() + diff + offsetWeeks * 7)
   const y = monday.getFullYear()
@@ -204,7 +225,11 @@ export async function getRecentSessions(limit = 10): Promise<FocusSession[]> {
   return data ?? []
 }
 
-export async function createFocusSession(session: Omit<FocusSession, 'id' | 'user_id' | 'completed_at'>): Promise<FocusSession | null> {
+export async function createFocusSession(session: {
+  session_type: string
+  duration: number
+  xp_earned: number
+}): Promise<FocusSession | null> {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
@@ -214,15 +239,15 @@ export async function createFocusSession(session: Omit<FocusSession, 'id' | 'use
     .select()
     .single()
   if (error) throw error
-  // Also update profile stats
+  // Mise à jour du profil : XP = 1 par minute
+  const xpToAdd = session.duration // 1 XP par minute
+  const hoursToAdd = session.duration / 60
   const profile = await getProfile()
   if (profile) {
-    const newXP = profile.xp + session.xp_earned
-    const newHours = profile.total_focus_hours + session.duration / 60
     await updateProfile({
-      xp: newXP,
-      sessions_completed: profile.sessions_completed + 1,
-      total_focus_hours: newHours,
+      xp: (profile.xp ?? 0) + xpToAdd,
+      sessions_completed: (profile.sessions_completed ?? 0) + 1,
+      total_focus_hours: (profile.total_focus_hours ?? 0) + hoursToAdd,
     })
   }
   return data
@@ -244,16 +269,15 @@ export async function getWeeklyActivity(): Promise<{ day: string; hours: number;
     .gte('completed_at', weekStart)
     .lt('completed_at', weekEnd.toISOString().split('T')[0])
 
-  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+  const days = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
   const result = days.map((day) => ({ day, hours: 0, sessions: 0 }))
 
   for (const session of data ?? []) {
     const date = new Date(session.completed_at)
-    const dayIndex = (date.getDay() + 6) % 7 // Mon=0
+    const dayIndex = (date.getDay() + 6) % 7
     result[dayIndex].hours += session.duration / 60
     result[dayIndex].sessions += 1
   }
 
   return result
 }
-
