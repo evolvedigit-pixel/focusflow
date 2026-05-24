@@ -22,12 +22,16 @@ import {
 } from "recharts"
 
 function formatTimeAgo(dateString: string) {
-  const date = new Date(dateString)
-  const now = new Date()
-  const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60))
-  if (diffInMinutes < 60) return `il y a ${diffInMinutes} min`
-  if (diffInMinutes < 1440) return `il y a ${Math.floor(diffInMinutes / 60)}h`
-  return `il y a ${Math.floor(diffInMinutes / 1440)}j`
+  try {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60))
+    if (diffInMinutes < 60) return `il y a ${diffInMinutes} min`
+    if (diffInMinutes < 1440) return `il y a ${Math.floor(diffInMinutes / 60)}h`
+    return `il y a ${Math.floor(diffInMinutes / 1440)}j`
+  } catch {
+    return ""
+  }
 }
 
 export default function DashboardPage() {
@@ -35,16 +39,21 @@ export default function DashboardPage() {
   const [sessions, setSessions] = useState<FocusSession[]>([])
   const [weeklyData, setWeeklyData] = useState<{ day: string; hours: number; sessions: number }[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    Promise.all([getProfile(), getRecentSessions(5), getWeeklyActivity()]).then(
-      ([p, s, w]) => {
+    Promise.all([getProfile(), getRecentSessions(5), getWeeklyActivity()])
+      .then(([p, s, w]) => {
         setProfile(p)
-        setSessions(s)
-        setWeeklyData(w)
+        setSessions(s ?? [])
+        setWeeklyData(w ?? [])
         setLoading(false)
-      }
-    )
+      })
+      .catch((err) => {
+        console.error("Dashboard error:", err)
+        setError("Erreur de chargement")
+        setLoading(false)
+      })
   }, [])
 
   if (loading) {
@@ -55,7 +64,20 @@ export default function DashboardPage() {
     )
   }
 
+  if (error) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4">
+        <p className="text-muted-foreground">{error}</p>
+        <Button onClick={() => window.location.reload()}>Réessayer</Button>
+      </div>
+    )
+  }
+
   const p = profile
+  const xp = p?.xp ?? 0
+  const xpToNext = p?.xp_to_next_level ?? 1000
+  const xpProgress = xpToNext > 0 ? Math.min((xp / xpToNext) * 100, 100) : 0
+
   const statCards = [
     {
       title: "Score de productivité",
@@ -83,7 +105,7 @@ export default function DashboardPage() {
     },
     {
       title: "XP total",
-      value: p?.xp ?? 0,
+      value: xp,
       suffix: "",
       icon: Zap,
       color: "from-yellow-500 to-amber-500",
@@ -91,7 +113,7 @@ export default function DashboardPage() {
     },
   ]
 
-  const xpProgress = p ? (p.xp / p.xp_to_next_level) * 100 : 0
+  const displayName = p?.name ?? p?.full_name ?? "là"
 
   return (
     <div className="space-y-6">
@@ -100,7 +122,7 @@ export default function DashboardPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold sm:text-3xl">
-              Bon retour, {p?.name?.split(" ")[0] ?? "là"} 👋
+              Bon retour, {displayName.split(" ")[0]} 👋
             </h1>
             <p className="text-muted-foreground mt-1">Votre aperçu de productivité</p>
           </div>
@@ -114,17 +136,15 @@ export default function DashboardPage() {
       </motion.div>
 
       {/* Progression XP */}
-      {p && (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
-          <GlassCard className="p-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-muted-foreground">Niveau {p.level} → {p.level + 1}</span>
-              <span className="text-sm font-medium">{(p.xp ?? 0).toLocaleString()} / {(p.xp_to_next_level ?? 1000).toLocaleString()} XP</span>
-            </div>
-            <Progress value={xpProgress} className="h-2" />
-          </GlassCard>
-        </motion.div>
-      )}
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
+        <GlassCard className="p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm text-muted-foreground">Niveau {p?.level ?? 1} → {(p?.level ?? 1) + 1}</span>
+            <span className="text-sm font-medium">{xp.toLocaleString()} / {xpToNext.toLocaleString()} XP</span>
+          </div>
+          <Progress value={xpProgress} className="h-2" />
+        </GlassCard>
+      </motion.div>
 
       {/* Cartes de stats */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -156,7 +176,7 @@ export default function DashboardPage() {
 
       {/* Graphiques + Sessions */}
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Graphique d'activité hebdomadaire */}
+        {/* Graphique activité hebdomadaire */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
           <GlassCard className="p-6">
             <div className="flex items-center gap-2 mb-4">
@@ -216,7 +236,9 @@ export default function DashboardPage() {
                 {sessions.map((session) => (
                   <div key={session.id} className="flex items-center justify-between rounded-xl bg-white/[0.03] px-4 py-3">
                     <div>
-                      <p className="font-medium capitalize">{session.type.replace("-", " ")}</p>
+                      <p className="font-medium capitalize">
+                        {(session.session_type ?? "").replace("-", " ")}
+                      </p>
                       <p className="text-xs text-muted-foreground">{formatTimeAgo(session.completed_at)}</p>
                     </div>
                     <div className="text-right">
