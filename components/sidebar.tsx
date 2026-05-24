@@ -14,6 +14,7 @@ import {
   CalendarDays,
   LogOut,
   CheckSquare,
+  Activity,
 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
@@ -23,6 +24,7 @@ import type { Profile } from "@/lib/db"
 const navItems = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Tableau de bord" },
   { href: "/planner", icon: CalendarDays, label: "Planificateur" },
+  { href: "/habits", icon: Activity, label: "Habitudes" },
   { href: "/tasks", icon: CheckSquare, label: "Taches" },
   { href: "/focus", icon: Timer, label: "Focus" },
   { href: "/leaderboard", icon: Trophy, label: "Classement" },
@@ -55,7 +57,7 @@ export function Sidebar() {
     router.refresh()
   }
 
-  const displayName = profile?.name ?? "Utilisateur"
+  const displayName = profile?.name ?? profile?.full_name ?? "Utilisateur"
   const displayXP = profile?.xp ?? 0
   const displayLevel = profile?.level ?? 1
   const initials = displayName.slice(0, 2).toUpperCase()
