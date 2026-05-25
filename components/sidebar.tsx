@@ -15,6 +15,7 @@ import {
   LogOut,
   CheckSquare,
   Activity,
+  BookOpen,
 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
@@ -27,6 +28,7 @@ const navItems = [
   { href: "/habits", icon: Activity, label: "Habitudes" },
   { href: "/tasks", icon: CheckSquare, label: "Taches" },
   { href: "/focus", icon: Timer, label: "Focus" },
+  { href: "/journal", icon: BookOpen, label: "Journal" },
   { href: "/leaderboard", icon: Trophy, label: "Classement" },
   { href: "/profile", icon: User, label: "Profil" },
 ]
@@ -127,7 +129,7 @@ export function Sidebar() {
           <span className="text-xl font-semibold">FocusFlow</span>
         </div>
 
-        <nav className="flex-1 px-3 py-4">
+        <nav className="flex-1 px-3 py-4 overflow-y-auto">
           <div className="space-y-1">
             {navItems.map((item) => {
               const isActive = pathname === item.href
