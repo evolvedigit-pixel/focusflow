@@ -95,17 +95,33 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* En-tête */}
+      {/* ── En-tête ── */}
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold sm:text-3xl">
-              Bon retour, {p?.name?.split(" ")[0] ?? "là"} 👋
+            <h1 className="text-4xl font-bold tracking-tight">
+              Bon retour, {p?.name?.split(" ")[0] ?? "là"}.
             </h1>
-            <p className="text-muted-foreground mt-1">Votre aperçu de productivité</p>
+            <p className="mt-2 text-white/50 text-lg">
+              Build discipline. Stay focused. Keep growing.
+            </p>
           </div>
           <Link href="/focus">
-            <Button className="bg-gradient-to-r from-purple-500 to-cyan-500 text-white border-0 hover:opacity-90">
+            <Button
+              className="
+                rounded-2xl
+                border border-white/10
+                bg-gradient-to-r
+                from-violet-600
+                via-violet-500
+                to-cyan-500
+                px-6 py-6
+                shadow-[0_10px_40px_rgba(139,92,246,0.25)]
+                hover:scale-[1.02]
+                hover:shadow-[0_15px_50px_rgba(139,92,246,0.35)]
+                transition-all
+              "
+            >
               <Timer className="mr-2 h-4 w-4" />
               Démarrer le focus
             </Button>
@@ -113,20 +129,28 @@ export default function DashboardPage() {
         </div>
       </motion.div>
 
-      {/* Progression XP */}
+      {/* ── Progression XP ── */}
       {p && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
-          <GlassCard className="p-4">
-            <div className="flex items-center justify-between mb-2">
+          <GlassCard
+            glow="purple"
+            className="
+              relative overflow-hidden
+              p-6 rounded-[32px]
+            "
+          >
+            <div className="absolute -right-16 -top-16 h-52 w-52 rounded-full bg-violet-500/10 blur-3xl" />
+            <div className="absolute -left-12 bottom-0 h-40 w-40 rounded-full bg-cyan-400/10 blur-3xl" />
+            <div className="relative flex items-center justify-between mb-3">
               <span className="text-sm text-muted-foreground">Niveau {p.level} → {p.level + 1}</span>
               <span className="text-sm font-medium">{(p.xp ?? 0).toLocaleString()} / {(p.xp_to_next_level ?? 1000).toLocaleString()} XP</span>
             </div>
-            <Progress value={xpProgress} className="h-2" />
+            <Progress value={xpProgress} className="h-2 relative" />
           </GlassCard>
         </motion.div>
       )}
 
-      {/* Cartes de stats */}
+      {/* ── Cartes de stats ── */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {statCards.map((card, i) => (
           <motion.div
@@ -135,18 +159,32 @@ export default function DashboardPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 + i * 0.05 }}
           >
-            <GlassCard className="p-5">
+            <GlassCard
+              glow={i % 2 === 0 ? "purple" : "cyan"}
+              className="
+                p-6
+                rounded-[28px]
+                min-h-[150px]
+              "
+            >
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">{card.title}</p>
-                  <p className="mt-1 text-2xl font-bold">
+                  <p className="mt-1 text-4xl font-bold tracking-tight">
                     <AnimatedCounter value={card.value} />
                     {card.suffix}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">{card.description}</p>
                 </div>
-                <div className={`flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br ${card.color} opacity-80`}>
-                  <card.icon className="h-5 w-5 text-white" />
+                <div
+                  className={`
+                    flex h-14 w-14 items-center justify-center
+                    rounded-2xl
+                    bg-gradient-to-br ${card.color}
+                    shadow-[0_8px_25px_rgba(0,0,0,0.25)]
+                  `}
+                >
+                  <card.icon className="h-6 w-6 text-white" />
                 </div>
               </div>
             </GlassCard>
@@ -154,12 +192,20 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* Graphiques + Sessions */}
+      {/* ── Graphiques + Sessions ── */}
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Graphique d'activité hebdomadaire */}
+
+        {/* Activité hebdomadaire */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-          <GlassCard className="p-6">
-            <div className="flex items-center gap-2 mb-4">
+          <GlassCard
+            glow="purple"
+            className="
+              relative overflow-hidden
+              p-7 rounded-[32px]
+            "
+          >
+            <div className="absolute right-0 top-0 h-56 w-56 rounded-full bg-violet-500/10 blur-3xl" />
+            <div className="relative flex items-center gap-2 mb-4">
               <TrendingUp className="h-5 w-5 text-purple-400" />
               <h2 className="font-semibold">Activité de la semaine</h2>
             </div>
@@ -173,8 +219,9 @@ export default function DashboardPage() {
                 <AreaChart data={weeklyData}>
                   <defs>
                     <linearGradient id="colorHours" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#a855f7" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#a855f7" stopOpacity={0} />
+                      <stop offset="0%" stopColor="#8B5CF6" stopOpacity={0.45} />
+                      <stop offset="60%" stopColor="#A855F7" stopOpacity={0.22} />
+                      <stop offset="100%" stopColor="#38BDF8" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
@@ -184,7 +231,14 @@ export default function DashboardPage() {
                     contentStyle={{ background: "rgba(0,0,0,0.8)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px" }}
                     labelStyle={{ color: "white" }}
                   />
-                  <Area type="monotone" dataKey="hours" stroke="#a855f7" strokeWidth={2} fill="url(#colorHours)" name="Heures" />
+                  <Area
+                    type="monotone"
+                    dataKey="hours"
+                    stroke="#8B5CF6"
+                    strokeWidth={3}
+                    fill="url(#colorHours)"
+                    name="Heures"
+                  />
                 </AreaChart>
               </ResponsiveContainer>
             )}
@@ -193,8 +247,14 @@ export default function DashboardPage() {
 
         {/* Sessions récentes */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
-          <GlassCard className="p-6">
-            <div className="flex items-center justify-between mb-4">
+          <GlassCard
+            glow="cyan"
+            className="
+              relative overflow-hidden
+              p-7 rounded-[32px]
+            "
+          >
+            <div className="relative flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Timer className="h-5 w-5 text-cyan-400" />
                 <h2 className="font-semibold">Sessions récentes</h2>
@@ -214,7 +274,21 @@ export default function DashboardPage() {
             ) : (
               <div className="space-y-3">
                 {sessions.map((session) => (
-                  <div key={session.id} className="flex items-center justify-between rounded-xl bg-white/[0.03] px-4 py-3">
+                  <div
+                    key={session.id}
+                    className="
+                      flex items-center justify-between
+                      rounded-2xl
+                      bg-white/[0.03]
+                      border border-white/[0.06]
+                      backdrop-blur-xl
+                      px-4 py-3
+                      hover:bg-white/[0.05]
+                      hover:border-white/[0.10]
+                      transition-all
+                      duration-300
+                    "
+                  >
                     <div>
                       <p className="font-medium capitalize">{session.type.replace("-", " ")}</p>
                       <p className="text-xs text-muted-foreground">{formatTimeAgo(session.completed_at)}</p>
