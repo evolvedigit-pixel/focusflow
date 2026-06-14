@@ -11,11 +11,13 @@ import {
   CheckCircle2,
   Sparkles,
   TrendingUp,
+  Timer,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { StatCard } from "@/components/ui/stat-card";
 import { ActivityChart } from "@/components/dashboard/activity-chart";
 import { LiveIndicator } from "@/components/dashboard/live-indicator";
+import Link from "next/link";
 
 type Task = {
   id: string;
@@ -141,93 +143,109 @@ export default function DashboardPage() {
   const hours = Math.floor(focusMinutesToday / 60);
   const minutes = focusMinutesToday % 60;
   const todayTasks = tasks.filter((t) => !t.completed).slice(0, 5);
+  const p = profile;
 
   return (
-    <div className="min-h-screen bg-[#050508] p-4 md:p-8">
+    <div className="min-h-screen bg-[#050508] p-4 md:p-8 space-y-6">
 
-      {/* ── HERO ── */}
+      {/* ── 1) HERO ─────────────────────────────────────────────────────────── */}
       <motion.div
-        initial={{ opacity: 0, y: -8 }}
+        initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="mb-8 flex flex-wrap items-end justify-between gap-4"
+        transition={{ duration: 0.6 }}
       >
-        <div>
-          <div className="flex items-center gap-3">
-            {/* 1. HERO — titre mis à jour */}
-            <h1 className="text-4xl font-bold tracking-tight">
-              {greeting()}{profile?.full_name ? `, ${profile.full_name.split(" ")[0]}` : ""}.
-            </h1>
-            <LiveIndicator active={!!activeSession} />
-          </div>
-          {/* 1. HERO — sous-titre mis à jour */}
-          <p className="mt-2 text-white/50 text-lg">
-            Build discipline. Stay focused. Keep growing.
-          </p>
-        </div>
+        <div className="relative overflow-hidden rounded-[36px] border border-white/[0.07] bg-white/[0.03] p-8 lg:p-10 backdrop-blur-xl">
+          {/* Halos */}
+          <div className="pointer-events-none absolute -top-24 -right-24 h-72 w-72 rounded-full bg-violet-500/15 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-20 -left-20 h-60 w-60 rounded-full bg-cyan-400/10 blur-3xl" />
 
-        {/* ── XP CARD — 2. halos violet + cyan ── */}
-        <div
-          className="relative overflow-hidden flex items-center gap-2 rounded-[32px] border border-white/[0.07] bg-white/[0.03] px-6 py-4 backdrop-blur-xl"
-        >
-          <div className="absolute -right-16 -top-16 h-52 w-52 rounded-full bg-violet-500/10 blur-3xl pointer-events-none" />
-          <div className="absolute -left-12 bottom-0 h-40 w-40 rounded-full bg-cyan-400/10 blur-3xl pointer-events-none" />
-          <Sparkles className="relative h-4 w-4 text-violet-300" />
-          <span className="relative text-sm font-medium text-white/70">Niveau {level}</span>
-          <div className="relative ml-2 h-1.5 w-24 overflow-hidden rounded-full bg-white/[0.07]">
-            <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: `${xpProgress}%` }}
-              transition={{ duration: 1, ease: "easeOut" }}
-              className="h-full rounded-full bg-gradient-to-r from-violet-500 to-cyan-400"
-            />
+          <div className="relative z-10 grid gap-8 lg:grid-cols-[1fr_280px]">
+            <div>
+              <span className="mb-4 inline-flex rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs tracking-[0.25em] text-white/60 uppercase">
+                Daily Focus
+              </span>
+
+              <h1 className="mt-2 text-4xl font-bold leading-tight lg:text-5xl">
+                {greeting()}, {p?.full_name?.split(" ")[0] ?? "Champion"} 👋
+              </h1>
+
+              <p className="mt-4 max-w-xl text-lg text-white/50">
+                "La discipline, c'est choisir entre ce que tu veux maintenant et ce que tu veux le plus."
+              </p>
+
+              <div className="mt-8 flex flex-wrap items-center gap-4">
+                <Link href="/focus">
+                  <button className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 to-cyan-500 px-6 py-3.5 text-sm font-semibold text-white shadow-[0_15px_50px_rgba(139,92,246,0.35)] hover:scale-[1.02] hover:shadow-[0_20px_60px_rgba(139,92,246,0.45)] transition-all">
+                    <Timer className="h-5 w-5" />
+                    Commencer une session
+                  </button>
+                </Link>
+
+                <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-5 py-3.5 text-sm text-white/70">
+                  🔥 Série actuelle : <span className="ml-1 font-bold text-white">0 jours</span>
+                </div>
+
+                <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-5 py-3.5 text-sm text-white/70">
+                  <Sparkles className="h-4 w-4 text-violet-300" />
+                  Niveau {level}
+                  <div className="ml-2 h-1.5 w-20 overflow-hidden rounded-full bg-white/[0.07]">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${xpProgress}%` }}
+                      transition={{ duration: 1, ease: "easeOut" }}
+                      className="h-full rounded-full bg-gradient-to-r from-violet-500 to-cyan-400"
+                    />
+                  </div>
+                  <span className="text-xs text-white/40">{xp % xpForNext}/{xpForNext} XP</span>
+                </div>
+
+                <LiveIndicator active={!!activeSession} />
+              </div>
+            </div>
+
+            {/* Avatar */}
+            <div className="flex items-center justify-center">
+              <div className="relative flex h-56 w-56 items-center justify-center rounded-full border border-white/10 bg-gradient-to-br from-violet-500/20 to-cyan-500/10 backdrop-blur-xl">
+                <div className="pointer-events-none absolute inset-0 rounded-full bg-violet-500/10 blur-3xl" />
+                <div className="text-[90px] select-none">🧘‍♂️</div>
+                <div className="absolute -right-2 top-8 text-2xl select-none">✨</div>
+                <div className="absolute left-2 bottom-8 text-xl select-none">🌙</div>
+                <div className="absolute right-10 bottom-2 text-lg select-none">⭐</div>
+              </div>
+            </div>
           </div>
-          <span className="relative text-xs tabular-nums text-white/40">{xp % xpForNext}/{xpForNext} XP</span>
         </div>
       </motion.div>
 
-      {/* ── STAT CARDS ── */}
+      {/* ── 2) STAT CARDS ───────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-        <StatCard
-          label="Score d'attention"
-          value={`${productivityScore}%`}
-          icon={<Target className="h-6 w-6" />}
-          accent="violet"
-          delay={0.05}
-          sublabel="aujourd'hui"
-          className="rounded-[28px] min-h-[150px] p-6 text-4xl font-bold tracking-tight"
-        />
-        <StatCard
-          label="Temps focus"
-          value={hours > 0 ? `${hours}h${String(minutes).padStart(2, "0")}` : `${minutes}m`}
-          icon={<Clock className="h-6 w-6" />}
-          accent="cyan"
-          delay={0.1}
-          sublabel={`${sessions.length} sessions`}
-          className="rounded-[28px] min-h-[150px] p-6 text-4xl font-bold tracking-tight"
-        />
-        <StatCard
-          label="Tâches"
-          value={`${completedTasks}/${tasks.length}`}
-          icon={<CheckCircle2 className="h-6 w-6" />}
-          accent="green"
-          delay={0.15}
-          sublabel="complétées"
-          className="rounded-[28px] min-h-[150px] p-6 text-4xl font-bold tracking-tight"
-        />
-        <StatCard
-          label="Habitudes"
-          value={`${habitsDone}/${habitsTotal}`}
-          icon={<Flame className="h-6 w-6" />}
-          accent="amber"
-          delay={0.2}
-          sublabel="aujourd'hui"
-          className="rounded-[28px] min-h-[150px] p-6 text-4xl font-bold tracking-tight"
-        />
+        {[
+          { label: "Score d'attention", value: `${productivityScore}%`, icon: Target, accent: "violet", sublabel: "aujourd'hui" },
+          { label: "Temps focus", value: hours > 0 ? `${hours}h${String(minutes).padStart(2, "0")}` : `${minutes}m`, icon: Clock, accent: "cyan", sublabel: `${sessions.length} sessions` },
+          { label: "Tâches", value: `${completedTasks}/${tasks.length}`, icon: CheckCircle2, accent: "green", sublabel: "complétées" },
+          { label: "Habitudes", value: `${habitsDone}/${habitsTotal}`, icon: Flame, accent: "amber", sublabel: "aujourd'hui" },
+        ].map((card, i) => (
+          <motion.div
+            key={card.label}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 + i * 0.05 }}
+          >
+            <StatCard
+              label={card.label}
+              value={card.value}
+              icon={<card.icon className="h-6 w-6" />}
+              accent={card.accent as any}
+              delay={0.1 + i * 0.05}
+              sublabel={card.sublabel}
+              className="rounded-[28px] p-6 min-h-[150px]"
+            />
+          </motion.div>
+        ))}
       </div>
 
-      {/* ── MAIN GRID ── */}
-      <div className="mt-6 grid gap-4 lg:grid-cols-3">
+      {/* ── MAIN GRID ───────────────────────────────────────────────────────── */}
+      <div className="grid gap-4 lg:grid-cols-3">
 
         {/* Plan du jour */}
         <motion.div
@@ -249,7 +267,7 @@ export default function DashboardPage() {
           {loading ? (
             <div className="space-y-2">
               {[0, 1, 2].map((i) => (
-                <div key={i} className="h-12 animate-pulse rounded-xl bg-white/[0.03]" />
+                <div key={i} className="h-12 animate-pulse rounded-2xl bg-white/[0.03]" />
               ))}
             </div>
           ) : todayTasks.length === 0 ? (
@@ -324,27 +342,25 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* 3. BOUTON FOCUS mis à jour */}
-            <a
+            <Link
               href="/focus"
-              className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-gradient-to-r from-violet-600 via-violet-500 to-cyan-500 px-6 py-3 text-sm font-medium text-white shadow-[0_10px_40px_rgba(139,92,246,0.25)] hover:scale-[1.02] hover:shadow-[0_15px_50px_rgba(139,92,246,0.35)] transition-all"
+              className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-gradient-to-r from-violet-600 via-violet-500 to-cyan-500 px-6 py-3 text-sm font-semibold text-white shadow-[0_10px_40px_rgba(139,92,246,0.25)] hover:scale-[1.02] hover:shadow-[0_15px_50px_rgba(139,92,246,0.35)] transition-all"
             >
+              <Timer className="h-4 w-4" />
               {activeSession ? "Reprendre la session" : "Démarrer une session"}
-            </a>
+            </Link>
           </div>
         </motion.div>
       </div>
 
-      {/* ── ACTIVITÉ ── */}
+      {/* ── 3) ACTIVITÉ ─────────────────────────────────────────────────────── */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.4 }}
-        className="relative overflow-hidden mt-6 rounded-[32px] border border-white/[0.07] bg-white/[0.03] p-7 backdrop-blur-xl"
+        className="relative overflow-hidden rounded-[32px] border border-white/[0.07] bg-white/[0.03] p-7 backdrop-blur-xl"
       >
-        {/* 7. halo violet */}
-        <div className="absolute right-0 top-0 h-56 w-56 rounded-full bg-violet-500/10 blur-3xl pointer-events-none" />
-
+        <div className="pointer-events-none absolute right-0 top-0 h-56 w-56 rounded-full bg-violet-500/10 blur-3xl" />
         <div className="relative mb-6 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <TrendingUp className="h-5 w-5 text-cyan-300" />
