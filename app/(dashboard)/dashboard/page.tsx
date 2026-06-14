@@ -55,7 +55,6 @@ export default function DashboardPage() {
   const [activeSession, setActiveSession] = useState<FocusSession | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // --- Fetch initial data ---
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -90,7 +89,6 @@ export default function DashboardPage() {
     return () => { cancelled = true; };
   }, [supabase]);
 
-  // --- Realtime: focus_sessions + tasks ---
   useEffect(() => {
     const channel = supabase
       .channel("dashboard-live")
@@ -113,11 +111,10 @@ export default function DashboardPage() {
     return () => { supabase.removeChannel(channel); };
   }, [supabase]);
 
-  // --- Derived stats ---
   const focusMinutesToday = sessions.reduce((acc, s) => acc + (s.duration_minutes || 0), 0);
   const completedTasks = tasks.filter((t) => t.completed).length;
   const taskRatio = tasks.length ? completedTasks / tasks.length : 0;
-  const focusRatio = Math.min(focusMinutesToday / 120, 1); // objectif 2h
+  const focusRatio = Math.min(focusMinutesToday / 120, 1);
   const habitRatio = habitsTotal ? habitsDone / habitsTotal : 0;
   const productivityScore = Math.round((taskRatio * 0.4 + focusRatio * 0.4 + habitRatio * 0.2) * 100);
 
@@ -147,7 +144,8 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-[#050508] p-4 md:p-8">
-      {/* --- Header --- */}
+
+      {/* ── HERO ── */}
       <motion.div
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
@@ -156,19 +154,27 @@ export default function DashboardPage() {
       >
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-semibold tracking-tight text-white/90 md:text-4xl">
-              {greeting()}{profile?.full_name ? `, ${profile.full_name.split(" ")[0]}` : ""} 👋
+            {/* 1. HERO — titre mis à jour */}
+            <h1 className="text-4xl font-bold tracking-tight">
+              {greeting()}{profile?.full_name ? `, ${profile.full_name.split(" ")[0]}` : ""}.
             </h1>
             <LiveIndicator active={!!activeSession} />
           </div>
-          <p className="mt-1 text-sm text-white/40">
-            Voici votre journée en un coup d'œil — restez concentré.
+          {/* 1. HERO — sous-titre mis à jour */}
+          <p className="mt-2 text-white/50 text-lg">
+            Build discipline. Stay focused. Keep growing.
           </p>
         </div>
-        <div className="flex items-center gap-2 rounded-2xl border border-white/[0.07] bg-white/[0.03] px-4 py-2 backdrop-blur-xl">
-          <Sparkles className="h-4 w-4 text-violet-300" />
-          <span className="text-sm font-medium text-white/70">Niveau {level}</span>
-          <div className="ml-2 h-1.5 w-24 overflow-hidden rounded-full bg-white/[0.07]">
+
+        {/* ── XP CARD — 2. halos violet + cyan ── */}
+        <div
+          className="relative overflow-hidden flex items-center gap-2 rounded-[32px] border border-white/[0.07] bg-white/[0.03] px-6 py-4 backdrop-blur-xl"
+        >
+          <div className="absolute -right-16 -top-16 h-52 w-52 rounded-full bg-violet-500/10 blur-3xl pointer-events-none" />
+          <div className="absolute -left-12 bottom-0 h-40 w-40 rounded-full bg-cyan-400/10 blur-3xl pointer-events-none" />
+          <Sparkles className="relative h-4 w-4 text-violet-300" />
+          <span className="relative text-sm font-medium text-white/70">Niveau {level}</span>
+          <div className="relative ml-2 h-1.5 w-24 overflow-hidden rounded-full bg-white/[0.07]">
             <motion.div
               initial={{ width: 0 }}
               animate={{ width: `${xpProgress}%` }}
@@ -176,38 +182,75 @@ export default function DashboardPage() {
               className="h-full rounded-full bg-gradient-to-r from-violet-500 to-cyan-400"
             />
           </div>
-          <span className="text-xs tabular-nums text-white/40">{xp % xpForNext}/{xpForNext} XP</span>
+          <span className="relative text-xs tabular-nums text-white/40">{xp % xpForNext}/{xpForNext} XP</span>
         </div>
       </motion.div>
 
-      {/* --- Top stats --- */}
+      {/* ── STAT CARDS ── */}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-        <StatCard label="Score d'attention" value={`${productivityScore}%`} icon={<Target className="h-5 w-5" />} accent="violet" delay={0.05} sublabel="aujourd'hui" />
-        <StatCard label="Temps focus" value={hours > 0 ? `${hours}h${String(minutes).padStart(2, "0")}` : `${minutes}m`} icon={<Clock className="h-5 w-5" />} accent="cyan" delay={0.1} sublabel={`${sessions.length} sessions`} />
-        <StatCard label="Tâches" value={`${completedTasks}/${tasks.length}`} icon={<CheckCircle2 className="h-5 w-5" />} accent="green" delay={0.15} sublabel="complétées" />
-        <StatCard label="Habitudes" value={`${habitsDone}/${habitsTotal}`} icon={<Flame className="h-5 w-5" />} accent="amber" delay={0.2} sublabel="aujourd'hui" />
+        <StatCard
+          label="Score d'attention"
+          value={`${productivityScore}%`}
+          icon={<Target className="h-6 w-6" />}
+          accent="violet"
+          delay={0.05}
+          sublabel="aujourd'hui"
+          className="rounded-[28px] min-h-[150px] p-6 text-4xl font-bold tracking-tight"
+        />
+        <StatCard
+          label="Temps focus"
+          value={hours > 0 ? `${hours}h${String(minutes).padStart(2, "0")}` : `${minutes}m`}
+          icon={<Clock className="h-6 w-6" />}
+          accent="cyan"
+          delay={0.1}
+          sublabel={`${sessions.length} sessions`}
+          className="rounded-[28px] min-h-[150px] p-6 text-4xl font-bold tracking-tight"
+        />
+        <StatCard
+          label="Tâches"
+          value={`${completedTasks}/${tasks.length}`}
+          icon={<CheckCircle2 className="h-6 w-6" />}
+          accent="green"
+          delay={0.15}
+          sublabel="complétées"
+          className="rounded-[28px] min-h-[150px] p-6 text-4xl font-bold tracking-tight"
+        />
+        <StatCard
+          label="Habitudes"
+          value={`${habitsDone}/${habitsTotal}`}
+          icon={<Flame className="h-6 w-6" />}
+          accent="amber"
+          delay={0.2}
+          sublabel="aujourd'hui"
+          className="rounded-[28px] min-h-[150px] p-6 text-4xl font-bold tracking-tight"
+        />
       </div>
 
-      {/* --- Main grid --- */}
+      {/* ── MAIN GRID ── */}
       <div className="mt-6 grid gap-4 lg:grid-cols-3">
+
         {/* Plan du jour */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.25 }}
-          className="relative overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.03] p-6 backdrop-blur-xl lg:col-span-2"
+          className="relative overflow-hidden rounded-[28px] border border-white/[0.07] bg-white/[0.03] p-6 backdrop-blur-xl lg:col-span-2"
         >
           <div className="mb-5 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Calendar className="h-5 w-5 text-violet-300" />
               <h2 className="text-lg font-semibold text-white/90">Plan du jour</h2>
             </div>
-            <span className="text-xs text-white/40">{new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}</span>
+            <span className="text-xs text-white/40">
+              {new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}
+            </span>
           </div>
 
           {loading ? (
             <div className="space-y-2">
-              {[0, 1, 2].map((i) => <div key={i} className="h-12 animate-pulse rounded-xl bg-white/[0.03]" />)}
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="h-12 animate-pulse rounded-xl bg-white/[0.03]" />
+              ))}
             </div>
           ) : todayTasks.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 text-center">
@@ -224,7 +267,7 @@ export default function DashboardPage() {
                   initial={{ opacity: 0, x: -8 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.3 + i * 0.05 }}
-                  className="group flex items-center gap-3 rounded-xl border border-white/[0.05] bg-white/[0.02] px-4 py-3 transition hover:border-white/[0.12] hover:bg-white/[0.04]"
+                  className="group flex items-center gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.03] px-4 py-3 backdrop-blur-xl hover:bg-white/[0.05] hover:border-white/[0.10] transition-all duration-300"
                 >
                   <div className={`h-2 w-2 rounded-full ${
                     task.priority === "high" ? "bg-pink-400" :
@@ -242,12 +285,12 @@ export default function DashboardPage() {
           )}
         </motion.div>
 
-        {/* Temps de travail / Timer */}
+        {/* Timer */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.3 }}
-          className="relative overflow-hidden rounded-2xl border border-white/[0.07] bg-gradient-to-br from-violet-500/10 via-white/[0.03] to-cyan-500/10 p-6 backdrop-blur-xl"
+          className="relative overflow-hidden rounded-[28px] border border-white/[0.07] bg-gradient-to-br from-violet-500/10 via-white/[0.03] to-cyan-500/10 p-6 backdrop-blur-xl"
         >
           <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-violet-500/20 blur-3xl" />
           <div className="pointer-events-none absolute -bottom-12 -left-12 h-40 w-40 rounded-full bg-cyan-500/20 blur-3xl" />
@@ -265,7 +308,7 @@ export default function DashboardPage() {
                 key={focusMinutesToday}
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
-                className="text-5xl font-semibold tracking-tight text-white/90 tabular-nums"
+                className="text-5xl font-bold tracking-tight text-white/90 tabular-nums"
               >
                 {hours > 0 ? `${hours}h${String(minutes).padStart(2, "0")}` : `${minutes}min`}
               </motion.div>
@@ -281,9 +324,10 @@ export default function DashboardPage() {
               </div>
             </div>
 
+            {/* 3. BOUTON FOCUS mis à jour */}
             <a
               href="/focus"
-              className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-500 to-cyan-500 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-violet-500/20 transition hover:shadow-violet-500/40"
+              className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-gradient-to-r from-violet-600 via-violet-500 to-cyan-500 px-6 py-3 text-sm font-medium text-white shadow-[0_10px_40px_rgba(139,92,246,0.25)] hover:scale-[1.02] hover:shadow-[0_15px_50px_rgba(139,92,246,0.35)] transition-all"
             >
               {activeSession ? "Reprendre la session" : "Démarrer une session"}
             </a>
@@ -291,14 +335,17 @@ export default function DashboardPage() {
         </motion.div>
       </div>
 
-      {/* --- Activity chart --- */}
+      {/* ── ACTIVITÉ ── */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.4 }}
-        className="mt-6 rounded-2xl border border-white/[0.07] bg-white/[0.03] p-6 backdrop-blur-xl"
+        className="relative overflow-hidden mt-6 rounded-[32px] border border-white/[0.07] bg-white/[0.03] p-7 backdrop-blur-xl"
       >
-        <div className="mb-6 flex items-center justify-between">
+        {/* 7. halo violet */}
+        <div className="absolute right-0 top-0 h-56 w-56 rounded-full bg-violet-500/10 blur-3xl pointer-events-none" />
+
+        <div className="relative mb-6 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <TrendingUp className="h-5 w-5 text-cyan-300" />
             <h2 className="text-lg font-semibold text-white/90">Activité des 7 derniers jours</h2>
@@ -308,8 +355,11 @@ export default function DashboardPage() {
             Total : {Math.round(weekSessions.reduce((a, s) => a + (s.duration_minutes || 0), 0) / 60)}h
           </div>
         </div>
-        <ActivityChart data={weeklyData} />
+        <div className="relative">
+          <ActivityChart data={weeklyData} />
+        </div>
       </motion.div>
+
     </div>
   );
 }
