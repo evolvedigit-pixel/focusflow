@@ -42,14 +42,20 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    const timeout = setTimeout(() => {
+      setLoading(false)
+    }, 5000)
+
     Promise.all([getProfile(), getRecentSessions(5), getWeeklyActivity()])
       .then(([p, s, w]) => {
+        clearTimeout(timeout)
         setProfile(p)
         setSessions(s ?? [])
         setWeeklyData(w ?? [])
         setLoading(false)
       })
       .catch((err) => {
+        clearTimeout(timeout)
         console.error("Dashboard error:", err)
         setError("Erreur de chargement")
         setLoading(false)
