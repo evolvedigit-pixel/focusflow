@@ -12,6 +12,7 @@ import {
   Menu,
   X,
   CalendarDays,
+  BookOpen,
   LogOut,
   CheckSquare,
   Activity,
@@ -27,6 +28,7 @@ const navItems = [
   { href: "/habits", icon: Activity, label: "Habitudes" },
   { href: "/tasks", icon: CheckSquare, label: "Taches" },
   { href: "/focus", icon: Timer, label: "Focus" },
+  { href: "/journal", icon: BookOpen, label: "Journal" },
   { href: "/leaderboard", icon: Trophy, label: "Classement" },
   { href: "/profile", icon: User, label: "Profil" },
 ]
