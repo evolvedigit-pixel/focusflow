@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import { useState, useEffect, useCallback, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
@@ -186,6 +186,26 @@ export default function PlannerPage() {
           </h1>
           <p className="text-sm text-white/40 mt-0.5">Votre semaine, parfaitement organisée</p>
         </div>
+      {/* ── NOTE PLANIFICATION ── */}
+      <motion.div
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="rounded-2xl px-5 py-4 flex items-start gap-4"
+        style={{ background: "linear-gradient(135deg, rgba(139,92,246,0.08), rgba(99,102,241,0.05))", border: "1px solid rgba(139,92,246,0.15)" }}
+      >
+        <div className="text-2xl flex-shrink-0">📋</div>
+        <div>
+          <div className="text-sm font-bold text-white/90 mb-1">
+            💡 Planifie ta journée du lendemain
+          </div>
+          <p className="text-xs leading-relaxed" style={{ color: "rgba(255,255,255,0.45)" }}>
+            Note <span className="text-violet-400 font-semibold">3 à 5 choses</span> à accomplir demain — par exemple : lire 10 pages d'un livre, terminer ce chapitre de physique-chimie, réviser 20 minutes de maths. Planifier la veille te donne une longueur d'avance dès le réveil.
+          </p>
+        </div>
+      </motion.div>
+
+
         <div className="flex gap-2">
           <motion.button
             whileHover={{ scale: 1.03 }}
@@ -296,7 +316,7 @@ export default function PlannerPage() {
         </div>
 
         {/* Grille scrollable */}
-        <div ref={gridRef} className="overflow-y-auto" style={{ maxHeight: "650px" }}>
+        <div ref={gridRef} className="overflow-y-auto" style={{ maxHeight: "420px" }}>
           {loadingTasks ? (
             <div className="flex h-48 items-center justify-center">
               <div className="flex flex-col items-center gap-3">
@@ -358,6 +378,87 @@ export default function PlannerPage() {
         </div>
       </motion.div>
 
+      {/* Liste de tâches */}
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.18 }}
+        className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-md overflow-hidden"
+      >
+        <div className="px-5 py-4 border-b border-white/[0.06] flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-3">
+            <div>
+              <h2 className="font-semibold text-white text-sm">Liste de tâches</h2>
+              <div className="flex items-center gap-2 mt-1">
+                <div className="h-1.5 w-28 rounded-full bg-white/[0.08] overflow-hidden">
+                  <motion.div
+                    className="h-full rounded-full bg-gradient-to-r from-violet-500 to-cyan-500"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${progressPct}%` }}
+                    transition={{ duration: 0.8, ease: "easeOut" }}
+                  />
+                </div>
+                <span className="text-xs text-white/40">{completedCount}/{todos.length}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="flex rounded-lg border border-white/[0.08] bg-white/[0.03] p-0.5">
+              {(["all", "active", "done"] as const).map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setTodoFilter(f)}
+                  className={cn(
+                    "px-3 py-1 rounded-md text-xs font-medium transition-all",
+                    todoFilter === f
+                      ? "bg-white/[0.12] text-white"
+                      : "text-white/40 hover:text-white/70"
+                  )}
+                >
+                  {filterLabels[f]}
+                </button>
+              ))}
+            </div>
+
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setShowAddTodo(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-white
+                bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-500 hover:to-teal-500
+                shadow-md shadow-cyan-900/30 transition-all"
+            >
+              <Plus className="h-3.5 w-3.5" /> Ajouter
+            </motion.button>
+          </div>
+        </div>
+
+        <div className="divide-y divide-white/[0.04]">
+          {loadingTodos ? (
+            <div className="flex h-20 items-center justify-center">
+              <Loader2 className="h-5 w-5 animate-spin text-violet-400" />
+            </div>
+          ) : filteredTodos.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-24 text-white/30 text-sm gap-2">
+              <Sparkles className="h-6 w-6 opacity-40" />
+              <p className="text-xs">{todoFilter === "done" ? "Aucune tâche terminée" : "Aucune tâche — ajoutez-en une !"}</p>
+            </div>
+          ) : (
+            <AnimatePresence initial={false}>
+              {filteredTodos.map((todo) => (
+                <TodoRow
+                  key={todo.id}
+                  todo={todo}
+                  onToggle={() => handleToggleTodo(todo)}
+                  onEdit={() => setEditingTodo(todo)}
+                  onDelete={() => handleDeleteTodo(todo.id)}
+                />
+              ))}
+            </AnimatePresence>
+          )}
+        </div>
+      </motion.div>
 
       {/* Modals */}
       <AnimatePresence>
@@ -739,4 +840,3 @@ function FormActions({ label, onSubmit, onCancel, accent }: {
     </div>
   )
 }
-
