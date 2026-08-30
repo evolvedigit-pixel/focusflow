@@ -15,7 +15,6 @@ import { Button } from "@/components/ui/button"
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
 import { createClient } from "@/lib/supabase/client"
 
-// ── QUOTES ─────────────────────────────────────────────────────────────────
 const QUOTES = [
   "Réviser les cours du jour, même 20 minutes par matière, installe les infos profondément dans ton cerveau.",
   "La discipline, c'est choisir entre ce que tu veux maintenant et ce que tu veux le plus.",
@@ -54,7 +53,7 @@ function RotatingQuotes() {
             {QUOTES.map((_,i) => (
               <button key={i} onClick={() => setIndex(i)}
                 className="h-1 rounded-full transition-all duration-300"
-                style={{ width: i===index?16:6, background: i===index?"#a855f7":"rgba(255,255,255,0.15)" }}/>
+                style={{ width:i===index?16:6, background:i===index?"#a855f7":"rgba(255,255,255,0.15)" }}/>
             ))}
           </div>
         </div>
@@ -63,20 +62,17 @@ function RotatingQuotes() {
   )
 }
 
-// ── PROCHAINE MISSION ───────────────────────────────────────────────────────
 function ProchaineMission({ todos }: { todos: Todo[] }) {
   const next = todos.find(t => !t.completed)
   const upcoming = todos.filter(t => !t.completed).slice(1, 4)
-
-  const categoryColors: Record<string, string> = {
-    study: "#8b5cf6", work: "#06b6d4", fitness: "#22c55e",
-    personal: "#f59e0b", meeting: "#ec4899", creative: "#ef4444",
+  const catColors: Record<string,string> = {
+    study:"#8b5cf6", work:"#06b6d4", fitness:"#22c55e",
+    personal:"#f59e0b", meeting:"#ec4899", creative:"#ef4444",
   }
-  const categoryNames: Record<string, string> = {
-    study: "Étude", work: "Travail", fitness: "Sport",
-    personal: "Personnel", meeting: "Réunion", creative: "Créatif",
+  const catNames: Record<string,string> = {
+    study:"Étude", work:"Travail", fitness:"Sport",
+    personal:"Personnel", meeting:"Réunion", creative:"Créatif",
   }
-
   return (
     <div className="rounded-2xl p-5 h-full flex flex-col gap-4"
       style={{ background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.07)" }}>
@@ -84,22 +80,21 @@ function ProchaineMission({ todos }: { todos: Todo[] }) {
         <span className="text-base">🎯</span>
         <span className="text-sm font-bold text-white">Ta prochaine mission</span>
       </div>
-
       {next ? (
         <div className="rounded-xl p-4 flex items-center gap-4"
           style={{ background:"rgba(139,92,246,0.1)", border:"1px solid rgba(139,92,246,0.2)" }}>
           <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ background:`${categoryColors[next.category]||"#8b5cf6"}20` }}>
+            style={{ background:`${catColors[next.category]||"#8b5cf6"}20` }}>
             <span className="text-lg">📚</span>
           </div>
           <div className="flex-1 min-w-0">
             <div className="font-bold text-white text-sm truncate">{next.title}</div>
             <div className="flex items-center gap-2 mt-1">
               <span className="text-xs" style={{ color:"rgba(255,255,255,0.4)" }}>
-                {categoryNames[next.category] || next.category}
+                {catNames[next.category]||next.category}
               </span>
               <span className="text-xs font-semibold" style={{ color:"#a78bfa" }}>
-                +{next.xp_reward || 25} XP
+                +{next.xp_reward||25} XP
               </span>
             </div>
           </div>
@@ -115,27 +110,19 @@ function ProchaineMission({ todos }: { todos: Todo[] }) {
           <p className="text-sm text-white/30">Aucune tâche en attente 🎉</p>
         </div>
       )}
-
       <div>
-        <div className="text-xs font-semibold mb-2" style={{ color:"rgba(255,255,255,0.35)" }}>
-          À venir aujourd'hui
-        </div>
+        <div className="text-xs font-semibold mb-2" style={{ color:"rgba(255,255,255,0.35)" }}>À venir aujourd'hui</div>
         <div className="space-y-2">
-          {upcoming.length === 0 ? (
+          {upcoming.length===0 ? (
             <p className="text-xs" style={{ color:"rgba(255,255,255,0.2)" }}>Aucune autre tâche</p>
-          ) : upcoming.map((todo, i) => (
+          ) : upcoming.map((todo,i) => (
             <motion.div key={todo.id}
               initial={{ opacity:0, x:-8 }} animate={{ opacity:1, x:0 }} transition={{ delay:i*0.05 }}
               className="flex items-center gap-3 rounded-xl px-3 py-2.5"
               style={{ background:"rgba(255,255,255,0.02)", border:"1px solid rgba(255,255,255,0.05)" }}>
-              <div className="w-4 h-4 rounded-full border flex-shrink-0"
-                style={{ borderColor:"rgba(255,255,255,0.15)" }}/>
-              <span className="flex-1 text-xs truncate" style={{ color:"rgba(255,255,255,0.6)" }}>
-                {todo.title}
-              </span>
-              <span className="text-xs font-semibold flex-shrink-0" style={{ color:"#a78bfa" }}>
-                +{todo.xp_reward||25} XP
-              </span>
+              <div className="w-4 h-4 rounded-full border flex-shrink-0" style={{ borderColor:"rgba(255,255,255,0.15)" }}/>
+              <span className="flex-1 text-xs truncate" style={{ color:"rgba(255,255,255,0.6)" }}>{todo.title}</span>
+              <span className="text-xs font-semibold flex-shrink-0" style={{ color:"#a78bfa" }}>+{todo.xp_reward||25} XP</span>
             </motion.div>
           ))}
         </div>
@@ -144,11 +131,11 @@ function ProchaineMission({ todos }: { todos: Todo[] }) {
   )
 }
 
-// ── CHAÎNE DE DISCIPLINE ────────────────────────────────────────────────────
+// ── CHAÎNE DE DISCIPLINE — carrés style GitHub ─────────────────────────────
 type DayData = { date: string; minutes: number }
 
 function getColor(minutes: number) {
-  if (minutes === 0)  return "rgba(139,92,246,0.08)"
+  if (minutes === 0)  return "rgba(255,255,255,0.06)"
   if (minutes < 30)  return "rgba(139,92,246,0.3)"
   if (minutes < 60)  return "rgba(139,92,246,0.55)"
   if (minutes < 120) return "rgba(139,92,246,0.8)"
@@ -156,78 +143,60 @@ function getColor(minutes: number) {
 }
 
 function ChainesDiscipline() {
-  const [days, setDays]         = useState<DayData[]>([])
-  const [streak, setStreak]     = useState(0)
+  const [days, setDays]             = useState<DayData[]>([])
+  const [streak, setStreak]         = useState(0)
   const [bestStreak, setBestStreak] = useState(0)
   const [activeDays, setActiveDays] = useState(0)
-  const [tooltip, setTooltip]   = useState<string|null>(null)
+  const [tooltip, setTooltip]       = useState<{text:string; x:number; y:number}|null>(null)
 
   useEffect(() => {
     async function load() {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
-
       const today = new Date()
-      const start = new Date(today)
-      start.setDate(today.getDate() - 27)
-
+      const start = new Date(today); start.setDate(today.getDate()-27)
       const { data: sessions } = await supabase
-        .from("focus_sessions")
-        .select("duration, completed_at")
-        .eq("user_id", user.id)
-        .gte("completed_at", start.toISOString())
-
+        .from("focus_sessions").select("duration, completed_at")
+        .eq("user_id", user.id).gte("completed_at", start.toISOString())
       const map: Record<string,number> = {}
-      for (const s of sessions ?? []) {
+      for (const s of sessions??[]) {
         const key = s.completed_at.split("T")[0]
-        map[key] = (map[key] ?? 0) + (s.duration ?? 0)
+        map[key] = (map[key]??0) + (s.duration??0)
       }
-
       const arr: DayData[] = []
-      for (let i = 27; i >= 0; i--) {
-        const d = new Date(today)
-        d.setDate(today.getDate() - i)
+      for (let i=27; i>=0; i--) {
+        const d = new Date(today); d.setDate(today.getDate()-i)
         const key = d.toISOString().split("T")[0]
-        arr.push({ date: key, minutes: map[key] ?? 0 })
+        arr.push({ date:key, minutes:map[key]??0 })
       }
       setDays(arr)
-
-      let cur = 0
-      for (let i = arr.length-1; i >= 0; i--) {
-        if (arr[i].minutes > 0) cur++; else break
-      }
+      let cur=0
+      for (let i=arr.length-1; i>=0; i--) { if (arr[i].minutes>0) cur++; else break }
       setStreak(cur)
-
-      let best = 0, tmp = 0
-      for (const d of arr) {
-        if (d.minutes > 0) { tmp++; best = Math.max(best,tmp) } else tmp = 0
-      }
+      let best=0, tmp=0
+      for (const d of arr) { if (d.minutes>0) { tmp++; best=Math.max(best,tmp) } else tmp=0 }
       setBestStreak(best)
-      setActiveDays(arr.filter(d => d.minutes > 0).length)
+      setActiveDays(arr.filter(d=>d.minutes>0).length)
     }
     load()
   }, [])
 
   const todayKey = new Date().toISOString().split("T")[0]
-  // 4 lignes x 7 colonnes
   const weeks: DayData[][] = []
-  for (let i = 0; i < days.length; i += 7) weeks.push(days.slice(i, i+7))
+  for (let i=0; i<days.length; i+=7) weeks.push(days.slice(i,i+7))
   const DAY_LABELS = ["L","M","M","J","V","S","D"]
 
   return (
     <div className="rounded-2xl p-5 flex flex-col gap-4"
       style={{ background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.07)" }}>
 
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Flame size={16} className="text-orange-400"/>
           <div>
             <div className="font-bold text-white text-sm">Chaîne de discipline</div>
-            <div className="text-xs" style={{ color:"rgba(255,255,255,0.3)" }}>
-              {activeDays} jours actifs ce mois-ci
-            </div>
+            <div className="text-xs" style={{ color:"rgba(255,255,255,0.3)" }}>{activeDays} jours actifs ce mois-ci</div>
           </div>
         </div>
         <div className="text-right">
@@ -237,106 +206,94 @@ function ChainesDiscipline() {
       </div>
 
       <div className="flex gap-4 items-start">
-        {/* Grille carrés */}
+        {/* Grille GitHub style */}
         <div className="flex-1 relative">
-          {/* Labels jours */}
-          <div className="grid grid-cols-7 gap-1.5 mb-1">
+          {/* Labels */}
+          <div className="grid grid-cols-7 gap-1 mb-1">
             {DAY_LABELS.map((d,i) => (
               <div key={i} className="text-center text-[9px]" style={{ color:"rgba(255,255,255,0.2)" }}>{d}</div>
             ))}
           </div>
-          {/* Carrés */}
-          <div className="flex flex-col gap-1.5 relative">
-            {weeks.map((week, wi) => (
-              <div key={wi} className="grid grid-cols-7 gap-1.5">
-                {week.map((day, di) => {
-                  const isToday = day.date === todayKey
+          {/* Carrés — border-radius petit comme GitHub */}
+          <div className="flex flex-col gap-1 relative">
+            {weeks.map((week,wi) => (
+              <div key={wi} className="grid grid-cols-7 gap-1">
+                {week.map((day,di) => {
+                  const isToday = day.date===todayKey
                   const label = new Date(day.date).toLocaleDateString("fr-FR",{weekday:"short",day:"numeric",month:"short"})
                   return (
                     <motion.div key={di}
-                      className="rounded-md cursor-pointer"
+                      className="cursor-pointer"
                       style={{
-                        height: 28,
+                        height:16,
                         background: getColor(day.minutes),
+                        /* ── CARRÉ STYLE GITHUB — border-radius très petit ── */
+                        borderRadius: 2,
                         border: isToday
-                          ? "2px solid rgba(168,85,247,0.9)"
-                          : "1px solid rgba(255,255,255,0.04)",
-                        boxShadow: day.minutes > 0 ? "0 0 6px rgba(139,92,246,0.2)" : "none"
+                          ? "1.5px solid rgba(168,85,247,0.9)"
+                          : "1px solid rgba(255,255,255,0.05)",
+                        boxShadow: day.minutes>0 ? "0 0 4px rgba(139,92,246,0.15)" : "none",
                       }}
-                      whileHover={{ scale:1.15, zIndex:10 }}
-                      onMouseEnter={() => setTooltip(
-                        day.minutes === 0
-                          ? `${label} — aucune session`
-                          : `${label} — ${day.minutes} min de focus`
-                      )}
+                      whileHover={{ scale:1.3, zIndex:10 }}
+                      onMouseEnter={e => {
+                        const rect = (e.target as HTMLElement).getBoundingClientRect()
+                        setTooltip({
+                          text: day.minutes===0
+                            ? `${label} — aucune session`
+                            : `${label} — ${day.minutes} min`,
+                          x: rect.left,
+                          y: rect.top,
+                        })
+                      }}
                       onMouseLeave={() => setTooltip(null)}
-                      initial={{ opacity:0, scale:0.7 }}
+                      initial={{ opacity:0, scale:0.5 }}
                       animate={{ opacity:1, scale:1 }}
-                      transition={{ delay:(wi*7+di)*0.015 }}
+                      transition={{ delay:(wi*7+di)*0.012 }}
                     />
                   )
                 })}
               </div>
             ))}
-            {/* Tooltip */}
-            {tooltip && (
-              <div className="absolute -top-8 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-lg text-xs text-white whitespace-nowrap z-20 pointer-events-none"
-                style={{ background:"rgba(0,0,0,0.9)", border:"1px solid rgba(255,255,255,0.1)" }}>
-                {tooltip}
-              </div>
-            )}
           </div>
 
           {/* Légende */}
           <div className="flex items-center gap-2 mt-3">
-            <div className="w-4 h-4 rounded-sm" style={{ background:getColor(0), border:"1px solid rgba(255,255,255,0.06)" }}/>
+            <div className="w-3 h-3" style={{ background:getColor(0), borderRadius:2, border:"1px solid rgba(255,255,255,0.06)" }}/>
             <span className="text-[9px]" style={{ color:"rgba(255,255,255,0.25)" }}>Jour inactif</span>
-            <div className="w-4 h-4 rounded-sm ml-2" style={{ background:getColor(120), border:"1px solid rgba(255,255,255,0.06)" }}/>
+            <div className="w-3 h-3 ml-2" style={{ background:getColor(120), borderRadius:2, border:"1px solid rgba(255,255,255,0.06)" }}/>
             <span className="text-[9px]" style={{ color:"rgba(255,255,255,0.25)" }}>Jour actif</span>
           </div>
         </div>
 
-        {/* Streak cercle */}
+        {/* Cercle streak */}
         <div className="flex flex-col items-center gap-2 flex-shrink-0">
-          {/* Cercle animé */}
-          <div className="relative flex items-center justify-center" style={{ width:80, height:80 }}>
-            <svg width="80" height="80" style={{ transform:"rotate(-90deg)", position:"absolute" }}>
-              <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(139,92,246,0.1)" strokeWidth="5"/>
-              <motion.circle cx="40" cy="40" r="34" fill="none"
-                stroke="url(#streakGrad)" strokeWidth="5" strokeLinecap="round"
-                strokeDasharray={213.6}
-                initial={{ strokeDashoffset:213.6 }}
-                animate={{ strokeDashoffset: 213.6 - Math.min(streak/30,1)*213.6 }}
+          <div className="relative flex items-center justify-center" style={{ width:72, height:72 }}>
+            <svg width="72" height="72" style={{ transform:"rotate(-90deg)", position:"absolute" }}>
+              <circle cx="36" cy="36" r="30" fill="none" stroke="rgba(139,92,246,0.1)" strokeWidth="5"/>
+              <motion.circle cx="36" cy="36" r="30" fill="none"
+                stroke="url(#streakGrad2)" strokeWidth="5" strokeLinecap="round"
+                strokeDasharray={188.5}
+                initial={{ strokeDashoffset:188.5 }}
+                animate={{ strokeDashoffset:188.5 - Math.min(streak/30,1)*188.5 }}
                 transition={{ duration:1.2, ease:"easeOut" }}/>
               <defs>
-                <linearGradient id="streakGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <linearGradient id="streakGrad2" x1="0%" y1="0%" x2="100%" y2="0%">
                   <stop offset="0%" stopColor="#f97316"/>
                   <stop offset="100%" stopColor="#ef4444"/>
                 </linearGradient>
               </defs>
             </svg>
             <div className="relative z-10 text-center">
-              <div className="font-black text-white" style={{ fontFamily:"'Sora',sans-serif", fontSize:22, lineHeight:1 }}>{streak}</div>
-              <div className="text-[8px]" style={{ color:"rgba(255,255,255,0.4)", lineHeight:1.2 }}>jours<br/>consécutifs</div>
+              <div className="font-black text-white" style={{ fontFamily:"'Sora',sans-serif", fontSize:20, lineHeight:1 }}>{streak}</div>
+              <div className="text-[8px]" style={{ color:"rgba(255,255,255,0.4)", lineHeight:1.2 }}>jours</div>
             </div>
           </div>
-
-          {/* Bonus XP */}
-          {streak >= 7 && (
-            <motion.div initial={{ opacity:0, scale:0.8 }} animate={{ opacity:1, scale:1 }}
-              className="text-center rounded-xl px-2 py-1.5"
-              style={{ background:"rgba(139,92,246,0.1)", border:"1px solid rgba(139,92,246,0.2)" }}>
-              <div className="text-[9px] font-bold" style={{ color:"#a78bfa" }}>
-                {streak} jours consécutifs
-              </div>
-              <div className="text-[9px]" style={{ color:"rgba(167,139,250,0.7)" }}>
-                → +{streak * 20} XP bonus
-              </div>
-            </motion.div>
-          )}
-          {streak === 0 && (
-            <div className="text-center text-[9px]" style={{ color:"rgba(255,255,255,0.2)" }}>
-              Lance ta chaîne<br/>aujourd'hui !
+          <div className="text-center text-[9px]" style={{ color:"rgba(255,255,255,0.25)" }}>
+            {streak===0 ? "Lance ta chaîne\naujourd'hui !" : `${streak} jours\nconsécutifs`}
+          </div>
+          {streak>=7 && (
+            <div className="text-center rounded-lg px-2 py-1" style={{ background:"rgba(139,92,246,0.1)", border:"1px solid rgba(139,92,246,0.2)" }}>
+              <div className="text-[9px] font-bold" style={{ color:"#a78bfa" }}>→ +{streak*20} XP bonus</div>
             </div>
           )}
         </div>
@@ -345,24 +302,22 @@ function ChainesDiscipline() {
   )
 }
 
-// ── UTILS ───────────────────────────────────────────────────────────────────
 function formatTimeAgo(dateString: string) {
   try {
-    const diff = Math.floor((Date.now() - new Date(dateString).getTime()) / 60000)
-    if (diff < 60) return `il y a ${diff} min`
-    if (diff < 1440) return `il y a ${Math.floor(diff/60)}h`
+    const diff = Math.floor((Date.now()-new Date(dateString).getTime())/60000)
+    if (diff<60) return `il y a ${diff} min`
+    if (diff<1440) return `il y a ${Math.floor(diff/60)}h`
     return `il y a ${Math.floor(diff/1440)}j`
   } catch { return "" }
 }
 
-// ── PAGE ────────────────────────────────────────────────────────────────────
 export default function DashboardPage() {
-  const [profile, setProfile]     = useState<Profile|null>(null)
-  const [sessions, setSessions]   = useState<FocusSession[]>([])
+  const [profile, setProfile]       = useState<Profile|null>(null)
+  const [sessions, setSessions]     = useState<FocusSession[]>([])
   const [weeklyData, setWeeklyData] = useState<{day:string;hours:number;sessions:number}[]>([])
-  const [todos, setTodos]         = useState<Todo[]>([])
-  const [loading, setLoading]     = useState(true)
-  const [error, setError]         = useState<string|null>(null)
+  const [todos, setTodos]           = useState<Todo[]>([])
+  const [loading, setLoading]       = useState(true)
+  const [error, setError]           = useState<string|null>(null)
 
   useEffect(() => {
     const timeout = setTimeout(() => setLoading(false), 5000)
@@ -387,11 +342,11 @@ export default function DashboardPage() {
     </div>
   )
 
-  const p = profile
-  const xp = p?.xp ?? 0
-  const xpToNext = p?.xp_to_next_level ?? 1000
-  const xpProgress = xpToNext > 0 ? Math.min((xp/xpToNext)*100, 100) : 0
-  const displayName = p?.name ?? p?.full_name ?? "là"
+  const p         = profile
+  const xp        = p?.xp??0
+  const xpToNext  = p?.xp_to_next_level??1000
+  const xpProgress = xpToNext>0 ? Math.min((xp/xpToNext)*100,100) : 0
+  const displayName = p?.name??p?.full_name??"là"
 
   const statCards = [
     { title:"Score de productivité", value:p?.productivity_score??0, suffix:"%",       icon:Target, color:"from-purple-500 to-purple-600", description:"Votre score"         },
@@ -402,7 +357,6 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-5">
-
       {/* En-tête */}
       <motion.div initial={{ opacity:0, y:-10 }} animate={{ opacity:1, y:0 }}>
         <div className="flex items-center justify-between">
@@ -472,7 +426,7 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* ── PROCHAINE MISSION + CHAÎNE DE DISCIPLINE ── */}
+      {/* Prochaine mission + Chaîne */}
       <div className="grid gap-4 lg:grid-cols-2">
         <motion.div initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.2 }}>
           <ProchaineMission todos={todos}/>
@@ -490,7 +444,7 @@ export default function DashboardPage() {
               <TrendingUp className="h-5 w-5 text-purple-400"/>
               <h2 className="font-semibold">Activité de la semaine</h2>
             </div>
-            {weeklyData.every(d => d.hours===0) ? (
+            {weeklyData.every(d=>d.hours===0) ? (
               <div className="flex h-40 items-center justify-center text-muted-foreground text-sm">
                 Aucune session cette semaine.{" "}
                 <Link href="/focus" className="ml-1 text-purple-400 hover:underline">Commencez !</Link>
@@ -528,7 +482,7 @@ export default function DashboardPage() {
                 </Button>
               </Link>
             </div>
-            {sessions.length === 0 ? (
+            {sessions.length===0 ? (
               <div className="flex h-40 flex-col items-center justify-center text-muted-foreground text-sm gap-2">
                 <Timer className="h-8 w-8 opacity-30"/>
                 <p>Aucune session pour l'instant.</p>
