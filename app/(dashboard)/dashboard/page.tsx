@@ -10,7 +10,7 @@ import {
   getSessionName,
   type Profile, type FocusSession, type Todo,
 } from "@/lib/db"
-import { Flame, Target, Clock, Zap, TrendingUp, Timer, ChevronRight, Loader2, Play } from "lucide-react"
+import { Flame, Target, Clock, Zap, TrendingUp, Timer, ChevronRight, Loader2, Play, Share2 } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
@@ -398,11 +398,18 @@ export default function DashboardPage() {
             <h1 className="text-2xl font-bold sm:text-3xl">Bon retour, {displayName.split(" ")[0]} 👋</h1>
             <p className="text-muted-foreground mt-1">Votre aperçu de productivité</p>
           </div>
-          <Link href="/focus">
-            <Button className="bg-gradient-to-r from-purple-500 to-cyan-500 text-white border-0 hover:opacity-90">
-              <Timer className="mr-2 h-4 w-4"/> Démarrer le focus
-            </Button>
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link href="/share">
+              <Button variant="outline" className="border-white/[0.1] bg-white/[0.03] hover:bg-white/[0.06]">
+                <Share2 className="mr-2 h-4 w-4"/> Partager
+              </Button>
+            </Link>
+            <Link href="/focus">
+              <Button className="bg-gradient-to-r from-purple-500 to-cyan-500 text-white border-0 hover:opacity-90">
+                <Timer className="mr-2 h-4 w-4"/> Démarrer le focus
+              </Button>
+            </Link>
+          </div>
         </div>
       </motion.div>
 
