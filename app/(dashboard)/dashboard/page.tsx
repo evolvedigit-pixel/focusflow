@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress"
 import { AnimatedCounter } from "@/components/animated-counter"
 import {
   getProfile, getRecentSessions, getWeeklyActivity, getTodos,
+  getSessionName,
   type Profile, type FocusSession, type Todo,
 } from "@/lib/db"
 import { Flame, Target, Clock, Zap, TrendingUp, Timer, ChevronRight, Loader2, Play } from "lucide-react"
@@ -63,7 +64,7 @@ function RotatingQuotes() {
 }
 
 function ProchaineMission({ todos }: { todos: Todo[] }) {
-  const next = todos.find(t => !t.completed)
+  const next     = todos.find(t => !t.completed)
   const upcoming = todos.filter(t => !t.completed).slice(1, 4)
   const catColors: Record<string,string> = {
     study:"#8b5cf6", work:"#06b6d4", fitness:"#22c55e",
@@ -131,7 +132,6 @@ function ProchaineMission({ todos }: { todos: Todo[] }) {
   )
 }
 
-// ── CHAÎNE DE DISCIPLINE — carrés style GitHub ─────────────────────────────
 type DayData = { date: string; minutes: number }
 
 function getColor(minutes: number) {
@@ -147,7 +147,7 @@ function ChainesDiscipline() {
   const [streak, setStreak]         = useState(0)
   const [bestStreak, setBestStreak] = useState(0)
   const [activeDays, setActiveDays] = useState(0)
-  const [tooltip, setTooltip]       = useState<{text:string; x:number; y:number}|null>(null)
+  const [tooltip, setTooltip]       = useState<string|null>(null)
 
   useEffect(() => {
     async function load() {
@@ -190,7 +190,6 @@ function ChainesDiscipline() {
   return (
     <div className="rounded-2xl p-5 flex flex-col gap-4"
       style={{ background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.07)" }}>
-
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Flame size={16} className="text-orange-400"/>
@@ -204,47 +203,30 @@ function ChainesDiscipline() {
           <div className="text-sm font-bold" style={{ color:"#a855f7" }}>{bestStreak} jours</div>
         </div>
       </div>
-
       <div className="flex gap-4 items-start">
-        {/* Grille GitHub style */}
         <div className="flex-1 relative">
-          {/* Labels */}
           <div className="grid grid-cols-7 gap-1 mb-1">
             {DAY_LABELS.map((d,i) => (
               <div key={i} className="text-center text-[9px]" style={{ color:"rgba(255,255,255,0.2)" }}>{d}</div>
             ))}
           </div>
-          {/* Carrés — border-radius petit comme GitHub */}
           <div className="flex flex-col gap-1 relative">
             {weeks.map((week,wi) => (
               <div key={wi} className="grid grid-cols-7 gap-1">
                 {week.map((day,di) => {
                   const isToday = day.date===todayKey
-                  const label = new Date(day.date).toLocaleDateString("fr-FR",{weekday:"short",day:"numeric",month:"short"})
+                  const label   = new Date(day.date).toLocaleDateString("fr-FR",{weekday:"short",day:"numeric",month:"short"})
                   return (
-                    <motion.div key={di}
-                      className="cursor-pointer"
+                    <motion.div key={di} className="cursor-pointer"
                       style={{
                         height:16,
                         background: getColor(day.minutes),
-                        /* ── CARRÉ STYLE GITHUB — border-radius très petit ── */
                         borderRadius: 2,
-                        border: isToday
-                          ? "1.5px solid rgba(168,85,247,0.9)"
-                          : "1px solid rgba(255,255,255,0.05)",
+                        border: isToday ? "1.5px solid rgba(168,85,247,0.9)" : "1px solid rgba(255,255,255,0.05)",
                         boxShadow: day.minutes>0 ? "0 0 4px rgba(139,92,246,0.15)" : "none",
                       }}
                       whileHover={{ scale:1.3, zIndex:10 }}
-                      onMouseEnter={e => {
-                        const rect = (e.target as HTMLElement).getBoundingClientRect()
-                        setTooltip({
-                          text: day.minutes===0
-                            ? `${label} — aucune session`
-                            : `${label} — ${day.minutes} min`,
-                          x: rect.left,
-                          y: rect.top,
-                        })
-                      }}
+                      onMouseEnter={() => setTooltip(day.minutes===0 ? `${label} — aucune session` : `${label} — ${day.minutes} min`)}
                       onMouseLeave={() => setTooltip(null)}
                       initial={{ opacity:0, scale:0.5 }}
                       animate={{ opacity:1, scale:1 }}
@@ -254,9 +236,13 @@ function ChainesDiscipline() {
                 })}
               </div>
             ))}
+            {tooltip && (
+              <div className="absolute -top-8 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-lg text-xs text-white whitespace-nowrap z-20 pointer-events-none"
+                style={{ background:"rgba(0,0,0,0.9)", border:"1px solid rgba(255,255,255,0.1)" }}>
+                {tooltip}
+              </div>
+            )}
           </div>
-
-          {/* Légende */}
           <div className="flex items-center gap-2 mt-3">
             <div className="w-3 h-3" style={{ background:getColor(0), borderRadius:2, border:"1px solid rgba(255,255,255,0.06)" }}/>
             <span className="text-[9px]" style={{ color:"rgba(255,255,255,0.25)" }}>Jour inactif</span>
@@ -264,8 +250,6 @@ function ChainesDiscipline() {
             <span className="text-[9px]" style={{ color:"rgba(255,255,255,0.25)" }}>Jour actif</span>
           </div>
         </div>
-
-        {/* Cercle streak */}
         <div className="flex flex-col items-center gap-2 flex-shrink-0">
           <div className="relative flex items-center justify-center" style={{ width:72, height:72 }}>
             <svg width="72" height="72" style={{ transform:"rotate(-90deg)", position:"absolute" }}>
@@ -293,7 +277,7 @@ function ChainesDiscipline() {
           </div>
           {streak>=7 && (
             <div className="text-center rounded-lg px-2 py-1" style={{ background:"rgba(139,92,246,0.1)", border:"1px solid rgba(139,92,246,0.2)" }}>
-              <div className="text-[9px] font-bold" style={{ color:"#a78bfa" }}>→ +{streak*20} XP bonus</div>
+              <div className="text-[9px] font-bold" style={{ color:"#a78bfa" }}>→ +{streak*5} XP bonus</div>
             </div>
           )}
         </div>
@@ -311,23 +295,71 @@ function formatTimeAgo(dateString: string) {
   } catch { return "" }
 }
 
+// ── Calcul score productivité depuis les vraies données ───────────────────────
+function calcProductivityScore(
+  sessions: FocusSession[],
+  todos: Todo[],
+  habitsDone: number,
+  habitsTotal: number
+): number {
+  const todayStart = new Date(); todayStart.setHours(0,0,0,0)
+
+  // Focus : objectif 2h = 120 min
+  const focusMin  = sessions
+    .filter(s => new Date(s.completed_at) >= todayStart)
+    .reduce((a,s) => a + (s.duration||0), 0)
+  const focusScore = Math.min(focusMin / 120, 1) * 40 // 40% du score
+
+  // Tâches : ratio complétées
+  const completed  = todos.filter(t => t.completed).length
+  const taskScore  = todos.length > 0 ? (completed / todos.length) * 40 : 0 // 40%
+
+  // Habitudes : ratio cochées
+  const habitScore = habitsTotal > 0 ? (habitsDone / habitsTotal) * 20 : 0 // 20%
+
+  return Math.round(focusScore + taskScore + habitScore)
+}
+
 export default function DashboardPage() {
-  const [profile, setProfile]       = useState<Profile|null>(null)
-  const [sessions, setSessions]     = useState<FocusSession[]>([])
-  const [weeklyData, setWeeklyData] = useState<{day:string;hours:number;sessions:number}[]>([])
-  const [todos, setTodos]           = useState<Todo[]>([])
-  const [loading, setLoading]       = useState(true)
-  const [error, setError]           = useState<string|null>(null)
+  const [profile, setProfile]         = useState<Profile|null>(null)
+  const [sessions, setSessions]       = useState<FocusSession[]>([])
+  const [weeklyData, setWeeklyData]   = useState<{day:string;hours:number;sessions:number}[]>([])
+  const [todos, setTodos]             = useState<Todo[]>([])
+  const [habitsDone, setHabitsDone]   = useState(0)
+  const [habitsTotal, setHabitsTotal] = useState(0)
+  const [loading, setLoading]         = useState(true)
+  const [error, setError]             = useState<string|null>(null)
 
   useEffect(() => {
     const timeout = setTimeout(() => setLoading(false), 5000)
-    Promise.all([getProfile(), getRecentSessions(5), getWeeklyActivity(), getTodos()])
-      .then(([p,s,w,t]) => {
-        clearTimeout(timeout)
-        setProfile(p); setSessions(s??[]); setWeeklyData(w??[]); setTodos(t??[])
-        setLoading(false)
-      })
-      .catch(() => { clearTimeout(timeout); setError("Erreur de chargement"); setLoading(false) })
+    async function load() {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { clearTimeout(timeout); setLoading(false); return }
+
+      const todayStart = new Date(); todayStart.setHours(0,0,0,0)
+
+      const [p, s, w, t, habitsRes, logsRes] = await Promise.all([
+        getProfile(),
+        getRecentSessions(5),
+        getWeeklyActivity(),
+        getTodos(),
+        supabase.from("habits").select("id").eq("user_id", user.id),
+        supabase.from("habit_entries").select("habit_id")
+          .eq("user_id", user.id)
+          .eq("completed", true)
+          .gte("date", todayStart.toISOString().split("T")[0]),
+      ])
+      clearTimeout(timeout)
+      setProfile(p)
+      setSessions(s??[])
+      setWeeklyData(w??[])
+      setTodos(t??[])
+      setHabitsTotal(habitsRes.data?.length ?? 0)
+      setHabitsDone(new Set((logsRes.data??[]).map((l:any) => l.habit_id)).size)
+      setLoading(false)
+    }
+    load().catch(() => { clearTimeout(timeout); setError("Erreur de chargement"); setLoading(false) })
   }, [])
 
   if (loading) return (
@@ -342,22 +374,24 @@ export default function DashboardPage() {
     </div>
   )
 
-  const p         = profile
-  const xp        = p?.xp??0
-  const xpToNext  = p?.xp_to_next_level??1000
-  const xpProgress = xpToNext>0 ? Math.min((xp/xpToNext)*100,100) : 0
-  const displayName = p?.name??p?.full_name??"là"
+  const p            = profile
+  const xp           = p?.xp ?? 0
+  const xpToNext     = p?.xp_to_next_level ?? 100
+  const xpProgress   = xpToNext > 0 ? Math.min((xp/xpToNext)*100, 100) : 0
+  const displayName  = p?.name ?? p?.full_name ?? "là"
+
+  // ── Score productivité calculé depuis les vraies données ──
+  const productivityScore = calcProductivityScore(sessions, todos, habitsDone, habitsTotal)
 
   const statCards = [
-    { title:"Score de productivité", value:p?.productivity_score??0, suffix:"%",       icon:Target, color:"from-purple-500 to-purple-600", description:"Votre score"         },
-    { title:"Heures de focus",       value:Math.round(p?.total_focus_hours??0), suffix:"h", icon:Clock, color:"from-cyan-500 to-cyan-600",    description:"Total"              },
-    { title:"Série en cours",        value:p?.streak??0, suffix:" jours",              icon:Flame,  color:"from-orange-500 to-red-500",   description:"Continuez !"          },
-    { title:"XP total",              value:xp, suffix:"",                              icon:Zap,    color:"from-yellow-500 to-amber-500",  description:`Niveau ${p?.level??1}` },
+    { title:"Score de productivité", value:productivityScore,                    suffix:"%",      icon:Target, color:"from-purple-500 to-purple-600", description:"Aujourd'hui"         },
+    { title:"Heures de focus",       value:Math.round(p?.total_focus_hours??0),  suffix:"h",      icon:Clock,  color:"from-cyan-500 to-cyan-600",    description:"Total"                },
+    { title:"Série en cours",        value:p?.streak??0,                         suffix:" jours", icon:Flame,  color:"from-orange-500 to-red-500",   description:"Continuez !"          },
+    { title:"XP total",              value:xp,                                   suffix:"",       icon:Zap,    color:"from-yellow-500 to-amber-500",  description:`Niveau ${p?.level??1}` },
   ]
 
   return (
     <div className="space-y-5">
-      {/* En-tête */}
       <motion.div initial={{ opacity:0, y:-10 }} animate={{ opacity:1, y:0 }}>
         <div className="flex items-center justify-between">
           <div>
@@ -372,7 +406,6 @@ export default function DashboardPage() {
         </div>
       </motion.div>
 
-      {/* Note + Citation */}
       <div className="grid gap-4 lg:grid-cols-2">
         <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.03 }}>
           <GlassCard className="p-5 relative overflow-hidden h-full">
@@ -395,7 +428,6 @@ export default function DashboardPage() {
         </motion.div>
       </div>
 
-      {/* XP */}
       <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.08 }}>
         <GlassCard className="p-4">
           <div className="flex items-center justify-between mb-2">
@@ -406,7 +438,6 @@ export default function DashboardPage() {
         </GlassCard>
       </motion.div>
 
-      {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {statCards.map((card,i) => (
           <motion.div key={card.title} initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.1+i*0.05 }}>
@@ -426,7 +457,6 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* Prochaine mission + Chaîne */}
       <div className="grid gap-4 lg:grid-cols-2">
         <motion.div initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.2 }}>
           <ProchaineMission todos={todos}/>
@@ -436,7 +466,6 @@ export default function DashboardPage() {
         </motion.div>
       </div>
 
-      {/* Graphiques + Sessions */}
       <div className="grid gap-6 lg:grid-cols-2">
         <motion.div initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.3 }}>
           <GlassCard className="p-6">
@@ -493,7 +522,10 @@ export default function DashboardPage() {
                 {sessions.map(session => (
                   <div key={session.id} className="flex items-center justify-between rounded-xl bg-white/[0.03] px-4 py-3">
                     <div>
-                      <p className="font-medium capitalize">{(session.session_type??"").replace("-"," ")}</p>
+                      {/* ── NOM EN FRANÇAIS ── */}
+                      <p className="font-medium capitalize">
+                        {getSessionName(session.session_type)}
+                      </p>
                       <p className="text-xs text-muted-foreground">{formatTimeAgo(session.completed_at)}</p>
                     </div>
                     <div className="text-right">
