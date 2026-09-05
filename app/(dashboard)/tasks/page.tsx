@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   Plus, CheckCircle2, Circle, Trash2, Edit3, Clock,
-  X, Loader2, Zap, Flag, Tag, Sparkles, Search,
+  X, Loader2, Zap, Flag, Tag, Sparkles, Search, GripVertical,
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import {
@@ -12,14 +12,23 @@ import {
   taskCategories, priorities, type Todo,
 } from "@/lib/db"
 import { cn } from "@/lib/utils"
+import {
+  DndContext, closestCenter, KeyboardSensor, PointerSensor,
+  useSensor, useSensors, type DragEndEvent,
+} from "@dnd-kit/core"
+import {
+  arrayMove, SortableContext, sortableKeyboardCoordinates,
+  useSortable, verticalListSortingStrategy,
+} from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
 
 const TASK_SUGGESTIONS = [
-  { title:"Réviser les cours du jour", category:"study",    priority:"high"   as const, emoji:"📚" },
-  { title:"Faire 30 min de sport",     category:"fitness",  priority:"medium" as const, emoji:"🏃" },
-  { title:"Lire 10 pages d'un livre",  category:"personal", priority:"low"    as const, emoji:"📖" },
-  { title:"Méditer 10 minutes",        category:"personal", priority:"low"    as const, emoji:"🧘" },
-  { title:"Boire 2L d'eau",           category:"personal", priority:"medium" as const, emoji:"💧" },
-  { title:"Préparer le cours de demain", category:"study", priority:"high"   as const, emoji:"✏️" },
+  { title:"Réviser les cours du jour",   category:"study",    priority:"high"   as const, emoji:"📚" },
+  { title:"Faire 30 min de sport",       category:"fitness",  priority:"medium" as const, emoji:"🏃" },
+  { title:"Lire 10 pages d'un livre",    category:"personal", priority:"low"    as const, emoji:"📖" },
+  { title:"Méditer 10 minutes",          category:"personal", priority:"low"    as const, emoji:"🧘" },
+  { title:"Boire 2L d'eau",             category:"personal", priority:"medium" as const, emoji:"💧" },
+  { title:"Préparer le cours de demain", category:"study",    priority:"high"   as const, emoji:"✏️" },
 ]
 
 function getCategoryColor(id: string) {
@@ -29,6 +38,103 @@ function getPriorityColor(id: string) {
   return priorities.find(p => p.id===id)?.color ?? "#f59e0b"
 }
 
+// ── Ligne tâche draggable ─────────────────────────────────────────────────────
+function SortableTodoRow({
+  todo, onToggle, onEdit, onDelete, isDragging,
+}: {
+  todo: Todo
+  onToggle: () => void
+  onEdit: () => void
+  onDelete: () => void
+  isDragging?: boolean
+}) {
+  const {
+    attributes, listeners, setNodeRef,
+    transform, transition, isDragging: isThisDragging,
+  } = useSortable({ id: todo.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isThisDragging ? 50 : undefined,
+    opacity: isThisDragging ? 0.85 : 1,
+  }
+
+  const catColor = getCategoryColor(todo.category)
+  const priColor = getPriorityColor(todo.priority)
+
+  return (
+    <div ref={setNodeRef} style={style}
+      className={cn(
+        "flex items-center gap-3 px-5 py-4 group transition-colors border-b border-white/[0.04] last:border-b-0",
+        isThisDragging
+          ? "bg-white/[0.06] rounded-xl shadow-2xl"
+          : "hover:bg-white/[0.02]",
+        todo.completed && "opacity-50"
+      )}>
+
+      {/* ── Poignée drag ── */}
+      <button {...attributes} {...listeners}
+        className="flex-shrink-0 cursor-grab active:cursor-grabbing text-white/20 hover:text-white/50 transition-colors touch-none"
+        title="Glisser pour réordonner">
+        <GripVertical className="h-4 w-4"/>
+      </button>
+
+      {/* Checkbox */}
+      <button onClick={onToggle} className="flex-shrink-0 transition-transform hover:scale-110">
+        {todo.completed
+          ? <CheckCircle2 style={{ width:20, height:20 }} className="text-green-400"/>
+          : <Circle style={{ width:20, height:20 }} className="text-white/25 hover:text-white/50"/>
+        }
+      </button>
+
+      {/* Barre couleur catégorie */}
+      <div className="w-1 h-10 rounded-full flex-shrink-0" style={{ backgroundColor:catColor }}/>
+
+      {/* Contenu */}
+      <div className="flex-1 min-w-0">
+        <p className={cn("text-sm font-medium text-white/90 truncate",
+          todo.completed && "line-through text-white/40")}>
+          {todo.title}
+        </p>
+        <div className="flex items-center gap-2 mt-1 flex-wrap">
+          <span className="inline-flex items-center gap-1 text-[10px] rounded-full px-2 py-0.5 font-medium"
+            style={{ backgroundColor:catColor+"22", color:catColor }}>
+            <Tag className="h-2.5 w-2.5"/>
+            {taskCategories.find(c => c.id===todo.category)?.name ?? todo.category}
+          </span>
+          <span className="inline-flex items-center gap-1 text-[10px] font-medium" style={{ color:priColor }}>
+            <Flag className="h-2.5 w-2.5"/>
+            {priorities.find(p => p.id===todo.priority)?.name ?? todo.priority}
+          </span>
+          {todo.due_date && (
+            <span className="inline-flex items-center gap-1 text-[10px] text-white/30">
+              <Clock className="h-2.5 w-2.5"/>
+              {new Date(todo.due_date).toLocaleDateString("fr-FR",{month:"short",day:"numeric"})}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="flex items-center gap-2 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+        <span className="text-[10px] text-yellow-400/80 flex items-center gap-0.5 font-medium">
+          <Zap className="h-3 w-3"/>+{todo.xp_reward}
+        </span>
+        <button onClick={onEdit}
+          className="w-7 h-7 flex items-center justify-center rounded-lg text-white/30 hover:text-white/80 hover:bg-white/[0.08] transition-all">
+          <Edit3 className="h-3.5 w-3.5"/>
+        </button>
+        <button onClick={onDelete}
+          className="w-7 h-7 flex items-center justify-center rounded-lg text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-all">
+          <Trash2 className="h-3.5 w-3.5"/>
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ── Page principale ───────────────────────────────────────────────────────────
 export default function TasksPage() {
   const [todos, setTodos]           = useState<Todo[]>([])
   const [loading, setLoading]       = useState(true)
@@ -43,9 +149,25 @@ export default function TasksPage() {
     due_date: new Date().toISOString().split("T")[0],
   })
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint:{ distance:6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter:sortableKeyboardCoordinates }),
+  )
+
   useEffect(() => {
     getTodos().then(data => { setTodos(data); setLoading(false) })
   }, [])
+
+  // ── Drag & Drop ───────────────────────────────────────────────────────────
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    setTodos(prev => {
+      const oldIdx = prev.findIndex(t => t.id===active.id)
+      const newIdx = prev.findIndex(t => t.id===over.id)
+      return arrayMove(prev, oldIdx, newIdx)
+    })
+  }
 
   const handleAdd = useCallback(async (override?: Partial<typeof newTodo>) => {
     const payload = { ...newTodo, ...override }
@@ -85,7 +207,6 @@ export default function TasksPage() {
   const completedCount = todos.filter(t => t.completed).length
   const progressPct    = todos.length > 0 ? Math.round((completedCount/todos.length)*100) : 0
 
-  // Message motivation selon progression
   const getProgressMsg = () => {
     if (todos.length===0) return null
     if (progressPct===100) return { msg:"🎉 Toutes les tâches terminées ! Tu es incroyable.", color:"#4ade80" }
@@ -95,6 +216,9 @@ export default function TasksPage() {
     return                        { msg:"💪 Lance-toi — la première tâche est la plus difficile.", color:"rgba(255,255,255,0.3)" }
   }
   const progressMsg = getProgressMsg()
+
+  // Filtres actifs = pas de drag (sinon conflit ordre)
+  const filtersActive = search || filterStatus!=="tous" || filterPriority!=="tous" || filterCategory!=="tous"
 
   return (
     <div className="flex flex-col gap-5">
@@ -115,7 +239,7 @@ export default function TasksPage() {
         </motion.button>
       </motion.div>
 
-      {/* ── ÉTAT VIDE ENGAGEANT ── */}
+      {/* ── ÉTAT VIDE ── */}
       {!loading && todos.length===0 && (
         <motion.div initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.1 }}
           className="rounded-2xl p-8 text-center"
@@ -127,8 +251,6 @@ export default function TasksPage() {
           <p className="mt-2 text-sm text-white/40 max-w-sm mx-auto">
             Ajoute tes intentions du jour. Chaque tâche complétée te rapporte des XP et renforce ta discipline.
           </p>
-
-          {/* Suggestions */}
           <div className="mt-6">
             <p className="text-xs font-semibold text-white/30 uppercase tracking-wider mb-3">Suggestions pour aujourd'hui</p>
             <div className="flex flex-wrap gap-2 justify-center">
@@ -144,7 +266,6 @@ export default function TasksPage() {
               ))}
             </div>
           </div>
-
           <motion.button whileHover={{ scale:1.03 }} whileTap={{ scale:0.97 }}
             onClick={() => setShowAdd(true)}
             className="mt-6 flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold text-white mx-auto bg-gradient-to-r from-violet-600 to-indigo-600 shadow-lg shadow-violet-900/40">
@@ -165,9 +286,7 @@ export default function TasksPage() {
             <motion.div className="h-full rounded-full bg-gradient-to-r from-violet-500 to-cyan-500"
               initial={{ width:0 }} animate={{ width:`${progressPct}%` }} transition={{ duration:0.8, ease:"easeOut" }}/>
           </div>
-          {progressMsg && (
-            <p className="mt-2 text-xs font-medium" style={{ color:progressMsg.color }}>{progressMsg.msg}</p>
-          )}
+          {progressMsg && <p className="mt-2 text-xs font-medium" style={{ color:progressMsg.color }}>{progressMsg.msg}</p>}
         </motion.div>
       )}
 
@@ -184,7 +303,7 @@ export default function TasksPage() {
             <div className="flex rounded-lg border border-white/[0.08] bg-white/[0.03] p-0.5">
               {(["tous","actifs","termines"] as const).map(f => (
                 <button key={f} onClick={() => setFilterStatus(f)}
-                  className={cn("px-3 py-1 rounded-md text-xs font-medium transition-all capitalize",
+                  className={cn("px-3 py-1 rounded-md text-xs font-medium transition-all",
                     filterStatus===f ? "bg-white/[0.12] text-white" : "text-white/40 hover:text-white/70")}>
                   {f==="tous"?"Tous":f==="actifs"?"Actifs":"Terminés"}
                 </button>
@@ -221,13 +340,28 @@ export default function TasksPage() {
               ))}
             </div>
           </div>
+          {filtersActive && (
+            <div className="text-[10px] text-white/25 flex items-center gap-1">
+              <GripVertical className="h-3 w-3"/>
+              Le drag & drop est désactivé pendant une recherche ou un filtre
+            </div>
+          )}
         </motion.div>
       )}
 
-      {/* ── LISTE DES TÂCHES ── */}
+      {/* ── LISTE DES TÂCHES avec DnD ── */}
       {todos.length > 0 && (
         <motion.div initial={{ opacity:0, y:16 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.15 }}
           className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-md overflow-hidden">
+
+          {/* Hint drag */}
+          {!filtersActive && todos.length > 1 && (
+            <div className="px-5 py-2 border-b border-white/[0.04] flex items-center gap-1.5">
+              <GripVertical className="h-3 w-3 text-white/20"/>
+              <span className="text-[10px] text-white/20">Glisse les tâches pour les réordonner</span>
+            </div>
+          )}
+
           {loading ? (
             <div className="flex h-32 items-center justify-center">
               <Loader2 className="h-6 w-6 animate-spin text-violet-400"/>
@@ -237,64 +371,71 @@ export default function TasksPage() {
               <Sparkles className="h-6 w-6 opacity-40"/>
               <p className="text-xs">Aucune tâche trouvée</p>
             </div>
-          ) : (
+          ) : filtersActive ? (
+            // Sans DnD si filtres actifs
             <div className="divide-y divide-white/[0.04]">
-              <AnimatePresence initial={false}>
-                {filtered.map(todo => {
-                  const catColor = getCategoryColor(todo.category)
-                  const priColor = getPriorityColor(todo.priority)
-                  return (
-                    <motion.div key={todo.id} layout
-                      initial={{ opacity:0, x:-8 }} animate={{ opacity:1, x:0 }} exit={{ opacity:0, x:8 }}
-                      className={cn("flex items-center gap-3 px-5 py-4 group transition-colors hover:bg-white/[0.02]",
-                        todo.completed && "opacity-50")}>
-                      <button onClick={() => handleToggle(todo)} className="flex-shrink-0 transition-transform hover:scale-110">
-                        {todo.completed
-                          ? <CheckCircle2 style={{ width:20, height:20 }} className="text-green-400"/>
-                          : <Circle style={{ width:20, height:20 }} className="text-white/25 hover:text-white/50"/>
-                        }
-                      </button>
-                      <div className="w-1 h-10 rounded-full flex-shrink-0" style={{ backgroundColor:catColor }}/>
-                      <div className="flex-1 min-w-0">
-                        <p className={cn("text-sm font-medium text-white/90 truncate", todo.completed && "line-through text-white/40")}>
-                          {todo.title}
-                        </p>
-                        <div className="flex items-center gap-2 mt-1 flex-wrap">
-                          <span className="inline-flex items-center gap-1 text-[10px] rounded-full px-2 py-0.5 font-medium"
-                            style={{ backgroundColor:catColor+"22", color:catColor }}>
-                            <Tag className="h-2.5 w-2.5"/>
-                            {taskCategories.find(c => c.id===todo.category)?.name ?? todo.category}
-                          </span>
-                          <span className="inline-flex items-center gap-1 text-[10px] font-medium" style={{ color:priColor }}>
-                            <Flag className="h-2.5 w-2.5"/>
-                            {priorities.find(p => p.id===todo.priority)?.name ?? todo.priority}
-                          </span>
-                          {todo.due_date && (
-                            <span className="inline-flex items-center gap-1 text-[10px] text-white/30">
-                              <Clock className="h-2.5 w-2.5"/>
-                              {new Date(todo.due_date).toLocaleDateString("fr-FR",{month:"short",day:"numeric"})}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <span className="text-[10px] text-yellow-400/80 flex items-center gap-0.5 font-medium">
-                          <Zap className="h-3 w-3"/>+{todo.xp_reward}
+              {filtered.map(todo => {
+                const catColor = getCategoryColor(todo.category)
+                const priColor = getPriorityColor(todo.priority)
+                return (
+                  <div key={todo.id}
+                    className={cn("flex items-center gap-3 px-5 py-4 group transition-colors hover:bg-white/[0.02]",
+                      todo.completed && "opacity-50")}>
+                    <div className="w-4 flex-shrink-0"/>
+                    <button onClick={() => handleToggle(todo)} className="flex-shrink-0 transition-transform hover:scale-110">
+                      {todo.completed
+                        ? <CheckCircle2 style={{ width:20, height:20 }} className="text-green-400"/>
+                        : <Circle style={{ width:20, height:20 }} className="text-white/25 hover:text-white/50"/>}
+                    </button>
+                    <div className="w-1 h-10 rounded-full flex-shrink-0" style={{ backgroundColor:catColor }}/>
+                    <div className="flex-1 min-w-0">
+                      <p className={cn("text-sm font-medium text-white/90 truncate", todo.completed && "line-through text-white/40")}>{todo.title}</p>
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        <span className="inline-flex items-center gap-1 text-[10px] rounded-full px-2 py-0.5 font-medium"
+                          style={{ backgroundColor:catColor+"22", color:catColor }}>
+                          <Tag className="h-2.5 w-2.5"/>{taskCategories.find(c => c.id===todo.category)?.name}
                         </span>
-                        <button onClick={() => setEditingTodo(todo)}
-                          className="w-7 h-7 flex items-center justify-center rounded-lg text-white/30 hover:text-white/80 hover:bg-white/[0.08] transition-all">
-                          <Edit3 className="h-3.5 w-3.5"/>
-                        </button>
-                        <button onClick={() => handleDelete(todo.id)}
-                          className="w-7 h-7 flex items-center justify-center rounded-lg text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-all">
-                          <Trash2 className="h-3.5 w-3.5"/>
-                        </button>
+                        <span className="inline-flex items-center gap-1 text-[10px] font-medium" style={{ color:priColor }}>
+                          <Flag className="h-2.5 w-2.5"/>{priorities.find(p => p.id===todo.priority)?.name}
+                        </span>
+                        {todo.due_date && (
+                          <span className="inline-flex items-center gap-1 text-[10px] text-white/30">
+                            <Clock className="h-2.5 w-2.5"/>
+                            {new Date(todo.due_date).toLocaleDateString("fr-FR",{month:"short",day:"numeric"})}
+                          </span>
+                        )}
                       </div>
-                    </motion.div>
-                  )
-                })}
-              </AnimatePresence>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <span className="text-[10px] text-yellow-400/80 flex items-center gap-0.5 font-medium">
+                        <Zap className="h-3 w-3"/>+{todo.xp_reward}
+                      </span>
+                      <button onClick={() => setEditingTodo(todo)}
+                        className="w-7 h-7 flex items-center justify-center rounded-lg text-white/30 hover:text-white/80 hover:bg-white/[0.08] transition-all">
+                        <Edit3 className="h-3.5 w-3.5"/>
+                      </button>
+                      <button onClick={() => handleDelete(todo.id)}
+                        className="w-7 h-7 flex items-center justify-center rounded-lg text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-all">
+                        <Trash2 className="h-3.5 w-3.5"/>
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
+          ) : (
+            // Avec DnD
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext items={todos.map(t => t.id)} strategy={verticalListSortingStrategy}>
+                {todos.map(todo => (
+                  <SortableTodoRow key={todo.id} todo={todo}
+                    onToggle={() => handleToggle(todo)}
+                    onEdit={() => setEditingTodo(todo)}
+                    onDelete={() => handleDelete(todo.id)}
+                  />
+                ))}
+              </SortableContext>
+            </DndContext>
           )}
         </motion.div>
       )}
@@ -330,8 +471,7 @@ function Modal({ title, children, onClose }: { title:string; children:React.Reac
         style={{ background:"linear-gradient(135deg,rgba(255,255,255,0.05),rgba(255,255,255,0.02))", backdropFilter:"blur(24px)", boxShadow:"0 24px 80px rgba(0,0,0,0.6)" }}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.07]">
           <h3 className="text-sm font-semibold text-white">{title}</h3>
-          <motion.button whileHover={{ scale:1.1, rotate:90 }} whileTap={{ scale:0.9 }}
-            onClick={onClose}
+          <motion.button whileHover={{ scale:1.1, rotate:90 }} whileTap={{ scale:0.9 }} onClick={onClose}
             className="w-7 h-7 flex items-center justify-center rounded-lg text-white/40 hover:text-white hover:bg-white/[0.08] transition-colors">
             <X className="h-4 w-4"/>
           </motion.button>
@@ -362,14 +502,14 @@ function TodoForm({ values, onChange, onSubmit, onCancel, label }: {
         <div className="space-y-1.5">
           <label className="text-xs font-medium text-white/40 uppercase tracking-wider">Catégorie</label>
           <select value={values.category} onChange={e => onChange({...values,category:e.target.value})}
-            className="w-full rounded-xl bg-white/[0.04] border border-white/[0.08] px-3 py-2.5 text-sm text-white focus:outline-none focus:border-violet-500/50 transition-colors appearance-none cursor-pointer">
+            className="w-full rounded-xl bg-white/[0.04] border border-white/[0.08] px-3 py-2.5 text-sm text-white focus:outline-none focus:border-violet-500/50 appearance-none cursor-pointer">
             {taskCategories.map(c => <option key={c.id} value={c.id} className="bg-zinc-900">{c.name}</option>)}
           </select>
         </div>
         <div className="space-y-1.5">
           <label className="text-xs font-medium text-white/40 uppercase tracking-wider">Priorité</label>
           <select value={values.priority} onChange={e => onChange({...values,priority:e.target.value})}
-            className="w-full rounded-xl bg-white/[0.04] border border-white/[0.08] px-3 py-2.5 text-sm text-white focus:outline-none focus:border-violet-500/50 transition-colors appearance-none cursor-pointer">
+            className="w-full rounded-xl bg-white/[0.04] border border-white/[0.08] px-3 py-2.5 text-sm text-white focus:outline-none focus:border-violet-500/50 appearance-none cursor-pointer">
             {priorities.map(p => <option key={p.id} value={p.id} className="bg-zinc-900">{p.name}</option>)}
           </select>
         </div>
