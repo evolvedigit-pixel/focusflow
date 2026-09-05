@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { GlassCard } from "@/components/ui/glass-card"
 import { Button } from "@/components/ui/button"
 import { sessionTypes, createFocusSession } from "@/lib/db"
-import { toggleAmbientSound, stopAllSounds, type AmbientSound } from "@/lib/ambient-sounds"
+import { toggleAmbientSound, stopAllSounds, setAmbientVolume, type AmbientSound } from "@/lib/ambient-sounds"
 import {
   Play, Pause, RotateCcw, Maximize2, Minimize2,
   Volume2, VolumeX, Zap, Clock, Target, Edit3, Palette, Bell, BellOff,
@@ -125,13 +125,7 @@ export default function FocusPage() {
   // ── Volume change ──────────────────────────────────────────────────────────
   function handleVolumeChange(v: number) {
     setVolume(v)
-    if (activeSound) {
-      stopAllSounds()
-      setTimeout(() => {
-        const result = toggleAmbientSound(activeSound, v)
-        setActiveSound(result)
-      }, 50)
-    }
+    setAmbientVolume(v)
   }
 
   useEffect(() => {
