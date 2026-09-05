@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   Plus, ChevronLeft, ChevronRight, Flame, TrendingUp,
-  X, Check, Loader2, Sparkles, Trash2,
+  X, Check, Loader2, Sparkles, Trash2, BarChart2,
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { createClient } from "@/lib/supabase/client"
@@ -16,15 +16,15 @@ const COLORS = [
 ]
 
 const HABIT_SUGGESTIONS = [
-  { name:"Méditation", emoji:"🧘", color:"#8b5cf6" },
-  { name:"Sport 30 min", emoji:"🏃", color:"#22c55e" },
-  { name:"Lecture", emoji:"📚", color:"#06b6d4" },
-  { name:"Boire 2L d'eau", emoji:"💧", color:"#3b82f6" },
-  { name:"Réviser les cours", emoji:"✏️", color:"#f59e0b" },
+  { name:"Méditation",           emoji:"🧘", color:"#8b5cf6" },
+  { name:"Sport 30 min",         emoji:"🏃", color:"#22c55e" },
+  { name:"Lecture",              emoji:"📚", color:"#06b6d4" },
+  { name:"Boire 2L d'eau",       emoji:"💧", color:"#3b82f6" },
+  { name:"Réviser les cours",    emoji:"✏️", color:"#f59e0b" },
   { name:"Pas de réseaux sociaux", emoji:"📵", color:"#ef4444" },
 ]
 
-type Habit = { id:string; user_id:string; name:string; color:string; created_at:string }
+type Habit      = { id:string; user_id:string; name:string; color:string; created_at:string }
 type HabitEntry = { id:string; habit_id:string; date:string; completed:boolean }
 
 function getWeekDates(offset: number) {
@@ -49,26 +49,121 @@ function isToday(d: Date) {
   return formatDate(d) === formatDate(new Date())
 }
 
-function formatWeekLabel(dates: Date[], offset: number) {
-  if (offset === 0) return "Cette semaine"
-  if (offset === -1) return "Semaine dernière"
-  if (offset === 1) return "Semaine prochaine"
-  const fmt = (d: Date) => d.toLocaleDateString("fr-FR",{month:"short",day:"numeric"})
-  return `${fmt(dates[0])} – ${fmt(dates[6])}`
+// ── Graphique 30 jours par habitude ──────────────────────────────────────────
+function HabitGraph({ habit, entries30 }: { habit: Habit; entries30: HabitEntry[] }) {
+  const days30 = Array.from({ length:30 }, (_,i) => {
+    const d = new Date(); d.setDate(d.getDate() - 29 + i); return d
+  })
+
+  const completedDays = days30.filter(d =>
+    entries30.some(e => e.habit_id===habit.id && e.date===formatDate(d) && e.completed)
+  ).length
+
+  const pct = Math.round((completedDays / 30) * 100)
+
+  // Grouper par semaine pour afficher 4-5 barres
+  const weeks: boolean[][] = []
+  for (let i = 0; i < days30.length; i += 7) {
+    weeks.push(days30.slice(i, i+7).map(d =>
+      entries30.some(e => e.habit_id===habit.id && e.date===formatDate(d) && e.completed)
+    ))
+  }
+
+  const weekLabels = ["S-4","S-3","S-2","S-1","Cette sem."]
+
+  return (
+    <div className="rounded-2xl p-5 relative overflow-hidden"
+      style={{ background:"rgba(255,255,255,0.02)", border:"1px solid rgba(255,255,255,0.06)" }}>
+
+      {/* Halo couleur */}
+      <div className="absolute -top-8 -right-8 w-24 h-24 rounded-full pointer-events-none"
+        style={{ background:`radial-gradient(circle,${habit.color}20,transparent 70%)`, filter:"blur(12px)" }}/>
+
+      {/* En-tête */}
+      <div className="flex items-center justify-between mb-4 relative z-10">
+        <div className="flex items-center gap-2.5">
+          <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor:habit.color }}/>
+          <span className="text-sm font-bold text-white">{habit.name}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-white/30">{completedDays}/30 jours</span>
+          <div className="px-2.5 py-1 rounded-lg text-xs font-bold"
+            style={{ background:`${habit.color}20`, color:habit.color }}>
+            {pct}%
+          </div>
+        </div>
+      </div>
+
+      {/* Grille 30 jours */}
+      <div className="flex gap-1 mb-3 relative z-10">
+        {days30.map((d, i) => {
+          const done    = entries30.some(e => e.habit_id===habit.id && e.date===formatDate(d) && e.completed)
+          const today   = isToday(d)
+          const future  = d > new Date()
+          return (
+            <motion.div key={i}
+              initial={{ opacity:0, scaleY:0 }} animate={{ opacity:1, scaleY:1 }}
+              transition={{ delay:i*0.015, duration:0.3 }}
+              className="flex-1 rounded-sm"
+              style={{
+                height: 28,
+                background: future
+                  ? "rgba(255,255,255,0.03)"
+                  : done
+                  ? habit.color
+                  : "rgba(255,255,255,0.06)",
+                border: today ? `1px solid ${habit.color}` : "none",
+                opacity: future ? 0.3 : 1,
+                boxShadow: done ? `0 0 4px ${habit.color}40` : "none",
+              }}
+              title={`${d.toLocaleDateString("fr-FR",{day:"numeric",month:"short"})} — ${done?"✓":"✗"}`}
+            />
+          )
+        })}
+      </div>
+
+      {/* Labels semaines */}
+      <div className="flex relative z-10" style={{ gap:0 }}>
+        {weekLabels.map((label, i) => (
+          <div key={i} className="text-[9px] text-white/20" style={{ width:`${100/weekLabels.length}%` }}>
+            {label}
+          </div>
+        ))}
+      </div>
+
+      {/* Barre de progression globale */}
+      <div className="mt-3 relative z-10">
+        <div className="h-1 rounded-full overflow-hidden" style={{ background:"rgba(255,255,255,0.05)" }}>
+          <motion.div className="h-full rounded-full"
+            style={{ background:`linear-gradient(90deg,${habit.color}80,${habit.color})` }}
+            initial={{ width:0 }} animate={{ width:`${pct}%` }} transition={{ duration:1, ease:"easeOut" }}/>
+        </div>
+      </div>
+
+      {/* Message tendance */}
+      <div className="mt-2 text-[10px] relative z-10" style={{ color:"rgba(255,255,255,0.3)" }}>
+        {pct >= 80 ? "🔥 Excellente régularité !"
+         : pct >= 50 ? "📈 Bonne progression, continue !"
+         : pct >= 20 ? "🌱 En développement, tiens bon"
+         : "💪 Commence dès aujourd'hui"}
+      </div>
+    </div>
+  )
 }
 
 export default function HabitsPage() {
-  const [habits, setHabits]         = useState<Habit[]>([])
-  const [entries, setEntries]       = useState<HabitEntry[]>([])
-  const [loading, setLoading]       = useState(true)
-  const [weekOffset, setWeekOffset] = useState(0)
-  const [showAdd, setShowAdd]       = useState(false)
+  const [habits, setHabits]           = useState<Habit[]>([])
+  const [entries, setEntries]         = useState<HabitEntry[]>([])
+  const [entries30, setEntries30]     = useState<HabitEntry[]>([])
+  const [loading, setLoading]         = useState(true)
+  const [weekOffset, setWeekOffset]   = useState(0)
+  const [showAdd, setShowAdd]         = useState(false)
+  const [showStats, setShowStats]     = useState(false)
   const [newHabitName, setNewHabitName] = useState("")
   const [newHabitColor, setNewHabitColor] = useState(COLORS[0])
-  const [saving, setSaving]         = useState(false)
+  const [saving, setSaving]           = useState(false)
 
   const weekDates = getWeekDates(weekOffset)
-  const weekLabel = formatWeekLabel(weekDates, weekOffset)
   const weekStart = formatDate(weekDates[0])
   const weekEnd   = formatDate(weekDates[6])
 
@@ -76,12 +171,21 @@ export default function HabitsPage() {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-    const [{ data: habitsData }, { data: entriesData }] = await Promise.all([
+
+    // 30 jours pour les stats
+    const start30 = new Date(); start30.setDate(start30.getDate()-29)
+    const start30Str = formatDate(start30)
+    const todayStr   = formatDate(new Date())
+
+    const [{ data: habitsData }, { data: entriesData }, { data: entries30Data }] = await Promise.all([
       supabase.from("habits").select("*").eq("user_id",user.id).order("created_at"),
       supabase.from("habit_entries").select("*").eq("user_id",user.id).gte("date",weekStart).lte("date",weekEnd),
+      supabase.from("habit_entries").select("*").eq("user_id",user.id).gte("date",start30Str).lte("date",todayStr),
     ])
+
     setHabits(habitsData??[])
     setEntries(entriesData??[])
+    setEntries30(entries30Data??[])
     setLoading(false)
   }, [weekStart, weekEnd])
 
@@ -94,7 +198,7 @@ export default function HabitsPage() {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-    const dateStr = formatDate(date)
+    const dateStr  = formatDate(date)
     const existing = entries.find(e => e.habit_id===habitId && e.date===dateStr)
     if (existing) {
       const newCompleted = !existing.completed
@@ -109,7 +213,7 @@ export default function HabitsPage() {
   }
 
   const addHabit = async (name?: string, color?: string) => {
-    const habitName = name ?? newHabitName.trim()
+    const habitName  = name ?? newHabitName.trim()
     const habitColor = color ?? newHabitColor
     if (!habitName) return
     setSaving(true)
@@ -130,6 +234,7 @@ export default function HabitsPage() {
     await supabase.from("habits").delete().eq("id",id)
     setHabits(prev => prev.filter(h => h.id!==id))
     setEntries(prev => prev.filter(e => e.habit_id!==id))
+    setEntries30(prev => prev.filter(e => e.habit_id!==id))
   }
 
   const totalPossible  = habits.length * 7
@@ -142,14 +247,13 @@ export default function HabitsPage() {
     const today = new Date()
     for (let i=0; i<30; i++) {
       const d = new Date(today); d.setDate(today.getDate()-i)
-      const dayEntries = entries.filter(e => e.date===formatDate(d) && e.completed)
+      const dayEntries = entries30.filter(e => e.date===formatDate(d) && e.completed)
       if (dayEntries.length>0) streak++
       else if (i>0) break
     }
     return streak
   }
 
-  // Score message
   const getScoreMessage = () => {
     if (successRate === 0) return { msg:"Lance-toi ! Chaque habitude compte 💪", color:"rgba(255,255,255,0.3)" }
     if (successRate < 30)  return { msg:"Bon début, continue sur ta lancée 🌱", color:"#22c55e" }
@@ -172,14 +276,27 @@ export default function HabitsPage() {
           </h1>
           <p className="text-sm text-white/40 mt-0.5">Ta seule habitude à prendre, c'est celle de remplir ce tableau !</p>
         </div>
-        <motion.button whileHover={{ scale:1.03 }} whileTap={{ scale:0.97 }}
-          onClick={() => setShowAdd(true)}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-white bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 shadow-lg shadow-violet-900/40 transition-all">
-          <Plus className="h-4 w-4"/> Nouvelle habitude
-        </motion.button>
+        <div className="flex items-center gap-2">
+          {habits.length > 0 && (
+            <motion.button whileHover={{ scale:1.03 }} whileTap={{ scale:0.97 }}
+              onClick={() => setShowStats(!showStats)}
+              className={cn("flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all border",
+                showStats
+                  ? "text-white bg-violet-600/20 border-violet-500/40"
+                  : "text-white/50 bg-white/[0.03] border-white/[0.08] hover:text-white hover:bg-white/[0.06]")}>
+              <BarChart2 className="h-4 w-4"/>
+              {showStats ? "Masquer stats" : "Stats 30 jours"}
+            </motion.button>
+          )}
+          <motion.button whileHover={{ scale:1.03 }} whileTap={{ scale:0.97 }}
+            onClick={() => setShowAdd(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-white bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 shadow-lg shadow-violet-900/40 transition-all">
+            <Plus className="h-4 w-4"/> Nouvelle habitude
+          </motion.button>
+        </div>
       </motion.div>
 
-      {/* ── STATS ── */}
+      {/* ── STATS RAPIDES ── */}
       <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.05 }}
         className="grid grid-cols-2 gap-3">
         <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-md px-5 py-4 flex items-center gap-3">
@@ -211,7 +328,51 @@ export default function HabitsPage() {
         </motion.div>
       )}
 
-      {/* ── ÉTAT VIDE ENGAGEANT ── */}
+      {/* ── STATISTIQUES 30 JOURS ── */}
+      <AnimatePresence>
+        {showStats && habits.length > 0 && (
+          <motion.div
+            initial={{ opacity:0, height:0 }} animate={{ opacity:1, height:"auto" }}
+            exit={{ opacity:0, height:0 }}
+            className="overflow-hidden">
+            <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-md p-5">
+              <div className="flex items-center gap-2 mb-5">
+                <BarChart2 className="h-4 w-4 text-violet-400"/>
+                <h2 className="font-semibold text-white">Progression sur 30 jours</h2>
+                <span className="text-xs text-white/30 ml-1">— chaque barre = 1 jour</span>
+              </div>
+
+              {/* Légende */}
+              <div className="flex items-center gap-4 mb-5 text-[10px] text-white/30">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3 h-3 rounded-sm bg-violet-500"/>
+                  <span>Complété</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3 h-3 rounded-sm" style={{ background:"rgba(255,255,255,0.06)" }}/>
+                  <span>Manqué</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3 h-3 rounded-sm border border-violet-400" style={{ background:"transparent" }}/>
+                  <span>Aujourd'hui</span>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                {habits.map((habit, i) => (
+                  <motion.div key={habit.id}
+                    initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }}
+                    transition={{ delay:i*0.06 }}>
+                    <HabitGraph habit={habit} entries30={entries30}/>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── ÉTAT VIDE ── */}
       {!loading && habits.length === 0 && (
         <motion.div initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.1 }}
           className="rounded-2xl p-8 text-center"
@@ -223,8 +384,6 @@ export default function HabitsPage() {
           <p className="mt-2 text-sm text-white/40 max-w-sm mx-auto">
             Les grandes transformations commencent par de petites habitudes quotidiennes. Choisis-en une et ne brise jamais la chaîne.
           </p>
-
-          {/* Suggestions rapides */}
           <div className="mt-6">
             <p className="text-xs font-semibold text-white/30 uppercase tracking-wider mb-3">Suggestions populaires</p>
             <div className="flex flex-wrap gap-2 justify-center">
@@ -240,7 +399,6 @@ export default function HabitsPage() {
               ))}
             </div>
           </div>
-
           <motion.button whileHover={{ scale:1.03 }} whileTap={{ scale:0.97 }}
             onClick={() => setShowAdd(true)}
             className="mt-6 flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold text-white mx-auto bg-gradient-to-r from-violet-600 to-indigo-600 shadow-lg shadow-violet-900/40">
@@ -249,12 +407,10 @@ export default function HabitsPage() {
         </motion.div>
       )}
 
-      {/* ── TABLEAU ── */}
+      {/* ── TABLEAU HEBDOMADAIRE ── */}
       {(loading || habits.length > 0) && (
         <motion.div initial={{ opacity:0, y:16 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.1 }}
           className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-md overflow-hidden">
-
-          {/* Navigation semaine */}
           <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06]">
             <motion.button whileHover={{ scale:1.1, x:-2 }} whileTap={{ scale:0.9 }}
               onClick={() => setWeekOffset(o => o-1)}
@@ -262,7 +418,7 @@ export default function HabitsPage() {
               <ChevronLeft className="h-5 w-5"/>
             </motion.button>
             <div className="flex flex-col items-center">
-              <span className="text-sm font-semibold text-white">Semaine : </span>
+              <span className="text-sm font-semibold text-white">Semaine</span>
               <span className="text-xs text-white/40">
                 {weekDates[0].toLocaleDateString("fr-FR",{day:"numeric",month:"short"})} –{" "}
                 {weekDates[6].toLocaleDateString("fr-FR",{day:"numeric",month:"short",year:"numeric"})}
@@ -284,7 +440,6 @@ export default function HabitsPage() {
             </div>
           </div>
 
-          {/* En-têtes jours */}
           <div className="grid border-b border-white/[0.06]" style={{ gridTemplateColumns:"200px repeat(7, 1fr)" }}>
             <div className="px-5 py-3 text-xs font-medium text-white/40 uppercase tracking-wider">Habitudes</div>
             {DAYS.map((day,i) => {
@@ -302,7 +457,6 @@ export default function HabitsPage() {
             })}
           </div>
 
-          {/* Lignes habitudes */}
           {loading ? (
             <div className="flex h-32 items-center justify-center">
               <Loader2 className="h-5 w-5 animate-spin text-violet-400"/>
@@ -325,7 +479,7 @@ export default function HabitsPage() {
                   </div>
                   {weekDates.map((date, di) => {
                     const completed = isCompleted(habit.id, date)
-                    const future = date > new Date() && !isToday(date)
+                    const future    = date > new Date() && !isToday(date)
                     return (
                       <div key={di} className={cn("flex items-center justify-center border-l border-white/[0.04] py-4", isToday(date) && "bg-violet-500/[0.03]")}>
                         <motion.button
@@ -351,7 +505,6 @@ export default function HabitsPage() {
             </AnimatePresence>
           )}
 
-          {/* Bouton ajouter bas */}
           <div className="px-5 py-3 border-t border-white/[0.06]">
             <button onClick={() => setShowAdd(true)}
               className="w-full py-2 rounded-xl border border-dashed border-white/[0.1] text-xs text-white/30 hover:text-white/60 hover:border-white/20 transition-all">
@@ -381,8 +534,6 @@ export default function HabitsPage() {
                   <X className="h-4 w-4"/>
                 </motion.button>
               </div>
-
-              {/* Suggestions rapides dans modal */}
               <div className="px-6 pt-4">
                 <p className="text-xs font-medium text-white/30 uppercase tracking-wider mb-2">Suggestions rapides</p>
                 <div className="flex flex-wrap gap-1.5 mb-4">
@@ -395,7 +546,6 @@ export default function HabitsPage() {
                   ))}
                 </div>
               </div>
-
               <div className="px-6 pb-6 space-y-4">
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-white/40 uppercase tracking-wider">Nom de l'habitude</label>
@@ -416,8 +566,7 @@ export default function HabitsPage() {
                 </div>
                 <div className="flex gap-3 pt-2">
                   <motion.button whileHover={{ scale:1.02 }} whileTap={{ scale:0.98 }}
-                    onClick={() => addHabit()}
-                    disabled={saving || !newHabitName.trim()}
+                    onClick={() => addHabit()} disabled={saving || !newHabitName.trim()}
                     className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 shadow-lg transition-all disabled:opacity-50">
                     {saving ? "Ajout..." : "Créer l'habitude"}
                   </motion.button>
