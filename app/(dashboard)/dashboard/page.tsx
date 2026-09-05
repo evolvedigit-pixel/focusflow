@@ -295,40 +295,37 @@ function formatTimeAgo(dateString: string) {
   } catch { return "" }
 }
 
-// ── Calcul score productivité depuis les vraies données ───────────────────────
+// ── BUG FIX 1 : Score productivité avec sessions du jour séparées ─────────────
 function calcProductivityScore(
-  sessions: FocusSession[],
+  todaySessions: FocusSession[],
   todos: Todo[],
   habitsDone: number,
   habitsTotal: number
 ): number {
-  const todayStart = new Date(); todayStart.setHours(0,0,0,0)
-
-  // Focus : objectif 2h = 120 min
-  const focusMin  = sessions
-    .filter(s => new Date(s.completed_at) >= todayStart)
-    .reduce((a,s) => a + (s.duration||0), 0)
-  const focusScore = Math.min(focusMin / 120, 1) * 40 // 40% du score
+  // Focus : objectif 2h = 120 min (sessions déjà filtrées sur aujourd'hui)
+  const focusMin   = todaySessions.reduce((a,s) => a + (s.duration||0), 0)
+  const focusScore = Math.min(focusMin / 120, 1) * 40
 
   // Tâches : ratio complétées
-  const completed  = todos.filter(t => t.completed).length
-  const taskScore  = todos.length > 0 ? (completed / todos.length) * 40 : 0 // 40%
+  const completed = todos.filter(t => t.completed).length
+  const taskScore = todos.length > 0 ? (completed / todos.length) * 40 : 0
 
-  // Habitudes : ratio cochées
-  const habitScore = habitsTotal > 0 ? (habitsDone / habitsTotal) * 20 : 0 // 20%
+  // Habitudes
+  const habitScore = habitsTotal > 0 ? (habitsDone / habitsTotal) * 20 : 0
 
   return Math.round(focusScore + taskScore + habitScore)
 }
 
 export default function DashboardPage() {
-  const [profile, setProfile]         = useState<Profile|null>(null)
-  const [sessions, setSessions]       = useState<FocusSession[]>([])
-  const [weeklyData, setWeeklyData]   = useState<{day:string;hours:number;sessions:number}[]>([])
-  const [todos, setTodos]             = useState<Todo[]>([])
-  const [habitsDone, setHabitsDone]   = useState(0)
-  const [habitsTotal, setHabitsTotal] = useState(0)
-  const [loading, setLoading]         = useState(true)
-  const [error, setError]             = useState<string|null>(null)
+  const [profile, setProfile]           = useState<Profile|null>(null)
+  const [sessions, setSessions]         = useState<FocusSession[]>([])
+  const [todaySessions, setTodaySessions] = useState<FocusSession[]>([])
+  const [weeklyData, setWeeklyData]     = useState<{day:string;hours:number;sessions:number}[]>([])
+  const [todos, setTodos]               = useState<Todo[]>([])
+  const [habitsDone, setHabitsDone]     = useState(0)
+  const [habitsTotal, setHabitsTotal]   = useState(0)
+  const [loading, setLoading]           = useState(true)
+  const [error, setError]               = useState<string|null>(null)
 
   useEffect(() => {
     const timeout = setTimeout(() => setLoading(false), 5000)
@@ -338,8 +335,9 @@ export default function DashboardPage() {
       if (!user) { clearTimeout(timeout); setLoading(false); return }
 
       const todayStart = new Date(); todayStart.setHours(0,0,0,0)
+      const todayStr   = todayStart.toISOString()
 
-      const [p, s, w, t, habitsRes, logsRes] = await Promise.all([
+      const [p, s, w, t, habitsRes, logsRes, todaySessionsRes] = await Promise.all([
         getProfile(),
         getRecentSessions(5),
         getWeeklyActivity(),
@@ -349,11 +347,19 @@ export default function DashboardPage() {
           .eq("user_id", user.id)
           .eq("completed", true)
           .gte("date", todayStart.toISOString().split("T")[0]),
+        // BUG FIX 1 : récupérer les sessions d'aujourd'hui séparément
+        supabase.from("focus_sessions")
+          .select("id, duration, xp_earned, session_type, completed_at")
+          .eq("user_id", user.id)
+          .gte("completed_at", todayStr),
       ])
+
       clearTimeout(timeout)
       setProfile(p)
       setSessions(s??[])
-      setWeeklyData(w??[])
+      setTodaySessions(todaySessionsRes.data ?? [])
+      // BUG FIX 2 : arrondir les heures à 1 décimale dans weeklyData
+      setWeeklyData((w??[]).map(d => ({ ...d, hours: Math.round(d.hours * 10) / 10 })))
       setTodos(t??[])
       setHabitsTotal(habitsRes.data?.length ?? 0)
       setHabitsDone(new Set((logsRes.data??[]).map((l:any) => l.habit_id)).size)
@@ -374,20 +380,20 @@ export default function DashboardPage() {
     </div>
   )
 
-  const p            = profile
-  const xp           = p?.xp ?? 0
-  const xpToNext     = p?.xp_to_next_level ?? 100
-  const xpProgress   = xpToNext > 0 ? Math.min((xp/xpToNext)*100, 100) : 0
-  const displayName  = p?.name ?? p?.full_name ?? "là"
+  const p           = profile
+  const xp          = p?.xp ?? 0
+  const xpToNext    = p?.xp_to_next_level ?? 100
+  const xpProgress  = xpToNext > 0 ? Math.min((xp/xpToNext)*100, 100) : 0
+  const displayName = p?.name ?? p?.full_name ?? "là"
 
-  // ── Score productivité calculé depuis les vraies données ──
-  const productivityScore = calcProductivityScore(sessions, todos, habitsDone, habitsTotal)
+  // Score calculé depuis les sessions du jour uniquement
+  const productivityScore = calcProductivityScore(todaySessions, todos, habitsDone, habitsTotal)
 
   const statCards = [
-    { title:"Score de productivité", value:productivityScore,                    suffix:"%",      icon:Target, color:"from-purple-500 to-purple-600", description:"Aujourd'hui"         },
-    { title:"Heures de focus",       value:Math.round(p?.total_focus_hours??0),  suffix:"h",      icon:Clock,  color:"from-cyan-500 to-cyan-600",    description:"Total"                },
-    { title:"Série en cours",        value:p?.streak??0,                         suffix:" jours", icon:Flame,  color:"from-orange-500 to-red-500",   description:"Continuez !"          },
-    { title:"XP total",              value:xp,                                   suffix:"",       icon:Zap,    color:"from-yellow-500 to-amber-500",  description:`Niveau ${p?.level??1}` },
+    { title:"Score de productivité", value:productivityScore,                   suffix:"%",      icon:Target, color:"from-purple-500 to-purple-600", description:"Aujourd'hui"         },
+    { title:"Heures de focus",       value:Math.round(p?.total_focus_hours??0), suffix:"h",      icon:Clock,  color:"from-cyan-500 to-cyan-600",    description:"Total"                },
+    { title:"Série en cours",        value:p?.streak??0,                        suffix:" jours", icon:Flame,  color:"from-orange-500 to-red-500",   description:"Continuez !"          },
+    { title:"XP total",              value:xp,                                  suffix:"",       icon:Zap,    color:"from-yellow-500 to-amber-500",  description:`Niveau ${p?.level??1}` },
   ]
 
   return (
@@ -496,8 +502,12 @@ export default function DashboardPage() {
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)"/>
                   <XAxis dataKey="day" stroke="rgba(255,255,255,0.4)" fontSize={12}/>
-                  <YAxis stroke="rgba(255,255,255,0.4)" fontSize={12}/>
-                  <Tooltip contentStyle={{ background:"rgba(0,0,0,0.8)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:"8px" }} labelStyle={{ color:"white" }}/>
+                  <YAxis stroke="rgba(255,255,255,0.4)" fontSize={12} tickFormatter={(v) => `${v}h`}/>
+                  <Tooltip
+                    contentStyle={{ background:"rgba(0,0,0,0.8)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:"8px" }}
+                    labelStyle={{ color:"white" }}
+                    formatter={(v: number) => [`${v}h`, "Focus"]}
+                  />
                   <Area type="monotone" dataKey="hours" stroke="#a855f7" strokeWidth={2} fill="url(#colorHours)" name="Heures"/>
                 </AreaChart>
               </ResponsiveContainer>
@@ -529,10 +539,7 @@ export default function DashboardPage() {
                 {sessions.map(session => (
                   <div key={session.id} className="flex items-center justify-between rounded-xl bg-white/[0.03] px-4 py-3">
                     <div>
-                      {/* ── NOM EN FRANÇAIS ── */}
-                      <p className="font-medium capitalize">
-                        {getSessionName(session.session_type)}
-                      </p>
+                      <p className="font-medium capitalize">{getSessionName(session.session_type)}</p>
                       <p className="text-xs text-muted-foreground">{formatTimeAgo(session.completed_at)}</p>
                     </div>
                     <div className="text-right">
