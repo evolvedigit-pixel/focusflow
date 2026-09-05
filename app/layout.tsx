@@ -1,22 +1,61 @@
-import { SidebarProvider } from "@/components/ui/sidebar"
-import { Sidebar } from "@/components/sidebar"
-import { MorningPopup } from "@/components/morning-popup"
-import { WeeklyReport } from "@/components/weekly-report"
+import type { Metadata, Viewport } from "next"
+import { Geist, Geist_Mono } from "next/font/google"
+import { Analytics } from "@vercel/analytics/next"
+import "./globals.css"
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+const geist = Geist({
+  subsets: ["latin"],
+  variable: "--font-geist-sans",
+})
+
+const geistMono = Geist_Mono({
+  subsets: ["latin"],
+  variable: "--font-geist-mono",
+})
+
+export const metadata: Metadata = {
+  title: "FocusFlow - Modern Productivity Dashboard",
+  description:
+    "Boost your productivity with FocusFlow. Track focus sessions, earn XP, compete on leaderboards, and achieve your goals.",
+  generator: "v0.app",
+  icons: {
+    icon: [
+      {
+        url: "/icon-light-32x32.png",
+        media: "(prefers-color-scheme: light)",
+      },
+      {
+        url: "/icon-dark-32x32.png",
+        media: "(prefers-color-scheme: dark)",
+      },
+      {
+        url: "/icon.svg",
+        type: "image/svg+xml",
+      },
+    ],
+    apple: "/apple-icon.png",
+  },
+}
+
+export const viewport: Viewport = {
+  themeColor: "#09090b",
+  width: "device-width",
+  initialScale: 1,
+}
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode
+}>) {
   return (
-    <SidebarProvider>
-      <div className="flex min-h-screen w-full">
-        <Sidebar />
-        <main className="flex-1 lg:pl-64">
-          <div className="relative z-10 min-h-screen px-4 py-8 sm:px-6 lg:px-8">
-            {children}
-          </div>
-        </main>
-      </div>
-      {/* Popups globaux */}
-      <MorningPopup />
-      <WeeklyReport />
-    </SidebarProvider>
+    <html lang="en" className="dark bg-background">
+      <body
+        className={`${geist.variable} ${geistMono.variable} font-sans antialiased min-h-screen`}
+      >
+        {children}
+        {process.env.NODE_ENV === "production" && <Analytics />}
+      </body>
+    </html>
   )
 }
