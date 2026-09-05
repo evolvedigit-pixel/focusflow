@@ -50,12 +50,6 @@ export type FocusSession = {
 }
  
 // ─── Système XP ──────────────────────────────────────────────────────────────
-// 1 XP par minute de focus
-// Tâche : low=10, medium=25, high=50
-// Habitude cochée : 15 XP
-// Note journal : 10 XP
-// Bonus streak : streak × 5 XP par session
- 
 export const XP_RULES = {
   FOCUS_PER_MINUTE: 1,
   TASK_LOW: 10,
@@ -66,7 +60,6 @@ export const XP_RULES = {
   STREAK_BONUS_PER_DAY: 5,
 }
  
-// XP nécessaire pour passer au niveau N+1 = N × 100
 export function xpForLevel(level: number): number {
   return level * 100
 }
@@ -94,16 +87,43 @@ export const sessionTypes = [
   { id: 'creative',  name: 'Créatif',         duration: 60, color: 'from-amber-500 to-orange-500' },
 ]
  
-// Retourne le nom français d'un type de session
 export function getSessionName(type: string): string {
   return sessionTypes.find(s => s.id === type)?.name ?? type
 }
  
-// XP pour une tâche selon sa priorité
 export function getTaskXP(priority: string): number {
   if (priority === 'high')   return XP_RULES.TASK_HIGH
   if (priority === 'medium') return XP_RULES.TASK_MEDIUM
   return XP_RULES.TASK_LOW
+}
+ 
+// ─── Utilitaire dates ────────────────────────────────────────────────────────
+function toDateKey(date: Date): string {
+  return date.toISOString().split('T')[0] // YYYY-MM-DD
+}
+ 
+function todayKey(): string {
+  return toDateKey(new Date())
+}
+ 
+function yesterdayKey(): string {
+  const d = new Date()
+  d.setDate(d.getDate() - 1)
+  return toDateKey(d)
+}
+ 
+// ─── Calcul du nouveau streak ─────────────────────────────────────────────────
+// lastSessionDate : date (YYYY-MM-DD) de la dernière session AVANT celle qu'on crée
+// currentStreak   : valeur actuelle du streak dans le profil
+function calcNewStreak(lastSessionDate: string | null, currentStreak: number): number {
+  if (!lastSessionDate) return 1           // première session ever
+ 
+  const today     = todayKey()
+  const yesterday = yesterdayKey()
+ 
+  if (lastSessionDate === today)     return currentStreak  // déjà focusé aujourd'hui
+  if (lastSessionDate === yesterday) return currentStreak + 1 // hier → on continue
+  return 1                                                 // trop vieux → on repart à 1
 }
  
 // ─── Profile ─────────────────────────────────────────────────────────────────
@@ -158,7 +178,6 @@ export async function addXP(amount: number): Promise<void> {
   let newXP    = (profile.xp ?? 0) + amount
   let newLevel = profile.level ?? 1
  
-  // Level up en boucle
   while (newXP >= xpForLevel(newLevel)) {
     newXP -= xpForLevel(newLevel)
     newLevel++
@@ -200,7 +219,6 @@ export async function createTodo(
 export async function updateTodo(id: string, updates: Partial<Todo>) {
   const supabase = createClient()
  
-  // Si on coche la tâche → ajouter XP
   if (updates.completed === true) {
     const { data: todo } = await supabase
       .from('todos').select('priority, completed').eq('id', id).single()
@@ -293,39 +311,47 @@ export async function createFocusSession(session: {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
  
-  // XP = 1 par minute + bonus streak
-  const { data: profile } = await supabase
-    .from('profiles').select('streak').eq('id', user.id).single()
-  const streak     = profile?.streak ?? 0
-  const streakBonus = streak * XP_RULES.STREAK_BONUS_PER_DAY
-  const xp_earned  = (session.duration * XP_RULES.FOCUS_PER_MINUTE) + streakBonus
+  // Charger le profil complet
+  const { data: currentProfile } = await supabase
+    .from('profiles')
+    .select('xp, level, sessions_completed, total_focus_hours, streak, last_session_date')
+    .eq('id', user.id).single()
  
+  const currentStreak    = currentProfile?.streak ?? 0
+  const lastSessionDate  = currentProfile?.last_session_date ?? null
+ 
+  // ── CALCUL STREAK ──────────────────────────────────────────────────────────
+  const newStreak = calcNewStreak(lastSessionDate, currentStreak)
+ 
+  // XP = 1 par minute + bonus streak
+  const streakBonus = newStreak * XP_RULES.STREAK_BONUS_PER_DAY
+  const xp_earned   = (session.duration * XP_RULES.FOCUS_PER_MINUTE) + streakBonus
+ 
+  // Insérer la session
   const { data, error } = await supabase
     .from('focus_sessions')
     .insert({ ...session, xp_earned, user_id: user.id })
     .select().single()
   if (error) throw error
  
-  // Mise à jour profil
+  // Mise à jour profil avec streak + last_session_date
   const hoursToAdd = session.duration / 60
-  const { data: currentProfile } = await supabase
-    .from('profiles').select('xp, level, sessions_completed, total_focus_hours').eq('id', user.id).single()
- 
-  if (currentProfile) {
-    let newXP    = (currentProfile.xp ?? 0) + xp_earned
-    let newLevel = currentProfile.level ?? 1
-    while (newXP >= xpForLevel(newLevel)) {
-      newXP -= xpForLevel(newLevel)
-      newLevel++
-    }
-    await supabase.from('profiles').update({
-      xp:                newXP,
-      level:             newLevel,
-      sessions_completed:(currentProfile.sessions_completed ?? 0) + 1,
-      total_focus_hours: (currentProfile.total_focus_hours ?? 0) + hoursToAdd,
-      updated_at:        new Date().toISOString(),
-    }).eq('id', user.id)
+  let newXP    = (currentProfile?.xp ?? 0) + xp_earned
+  let newLevel = currentProfile?.level ?? 1
+  while (newXP >= xpForLevel(newLevel)) {
+    newXP -= xpForLevel(newLevel)
+    newLevel++
   }
+ 
+  await supabase.from('profiles').update({
+    xp:                 newXP,
+    level:              newLevel,
+    sessions_completed: (currentProfile?.sessions_completed ?? 0) + 1,
+    total_focus_hours:  (currentProfile?.total_focus_hours ?? 0) + hoursToAdd,
+    streak:             newStreak,
+    last_session_date:  todayKey(),   // ← enregistre la date de la session
+    updated_at:         new Date().toISOString(),
+  }).eq('id', user.id)
  
   return data
 }
@@ -360,13 +386,12 @@ export async function getWeeklyActivity(): Promise<
 }
  
 // ─── Habitudes — XP ───────────────────────────────────────────────────────────
-// Appelé depuis la page habits quand une habitude est cochée
 export async function addHabitXP(): Promise<void> {
   await addXP(XP_RULES.HABIT)
 }
  
 // ─── Journal — XP ─────────────────────────────────────────────────────────────
-// Appelé depuis la page journal quand une note est créée
 export async function addJournalXP(): Promise<void> {
   await addXP(XP_RULES.JOURNAL)
 }
+ 
