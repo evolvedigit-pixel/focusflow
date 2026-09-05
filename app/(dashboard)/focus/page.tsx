@@ -1,13 +1,13 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { GlassCard } from "@/components/ui/glass-card"
 import { Button } from "@/components/ui/button"
 import { sessionTypes, createFocusSession } from "@/lib/db"
 import {
   Play, Pause, RotateCcw, Maximize2, Minimize2,
-  Volume2, VolumeX, Zap, Clock, Target, Edit3, Palette,
+  Volume2, VolumeX, Zap, Clock, Target, Edit3, Palette, Bell, BellOff,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -20,26 +20,88 @@ const BG_THEMES = [
   { id:"violet", label:"Violet", style:{ background:"radial-gradient(ellipse at center, #3b0764 0%, #1e0438 60%, #0d0019 100%)" } },
 ]
 
+// ── Son de fin de session (Web Audio API) ────────────────────────────────────
+function playCompletionSound() {
+  try {
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
+
+    const notes = [523.25, 659.25, 783.99, 1046.50] // Do Mi Sol Do (accord majeur)
+    const times = [0, 0.18, 0.36, 0.54]
+
+    notes.forEach((freq, i) => {
+      const osc   = ctx.createOscillator()
+      const gain  = ctx.createGain()
+      const start = ctx.currentTime + times[i]
+
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+
+      osc.type      = "sine"
+      osc.frequency.setValueAtTime(freq, start)
+
+      gain.gain.setValueAtTime(0, start)
+      gain.gain.linearRampToValueAtTime(0.22, start + 0.04)
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.7)
+
+      osc.start(start)
+      osc.stop(start + 0.75)
+    })
+
+    // Petit ding final après l'accord
+    const ding  = ctx.createOscillator()
+    const dGain = ctx.createGain()
+    ding.connect(dGain)
+    dGain.connect(ctx.destination)
+    ding.type = "sine"
+    ding.frequency.setValueAtTime(1318.5, ctx.currentTime + 1.1)
+    dGain.gain.setValueAtTime(0, ctx.currentTime + 1.1)
+    dGain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 1.14)
+    dGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 2.2)
+    ding.start(ctx.currentTime + 1.1)
+    ding.stop(ctx.currentTime + 2.3)
+  } catch (e) {
+    console.warn("Audio non disponible", e)
+  }
+}
+
+// ── Son de tick (toutes les heures, optionnel) ───────────────────────────────
+function playTickSound() {
+  try {
+    const ctx  = new (window.AudioContext || (window as any).webkitAudioContext)()
+    const osc  = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+    osc.type = "sine"
+    osc.frequency.setValueAtTime(880, ctx.currentTime)
+    gain.gain.setValueAtTime(0.08, ctx.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08)
+    osc.start(ctx.currentTime)
+    osc.stop(ctx.currentTime + 0.1)
+  } catch {}
+}
+
 export default function FocusPage() {
-  const [selected, setSelected]       = useState(sessionTypes[0])
+  const [selected, setSelected]         = useState(sessionTypes[0])
   const [customDuration, setCustomDuration] = useState(60)
-  const [timeLeft, setTimeLeft]       = useState(sessionTypes[0].duration * 60)
-  const [isRunning, setIsRunning]     = useState(false)
+  const [timeLeft, setTimeLeft]         = useState(sessionTypes[0].duration * 60)
+  const [isRunning, setIsRunning]       = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [soundEnabled, setSoundEnabled] = useState(true)
+  const [notifEnabled, setNotifEnabled] = useState(true)
   const [sessionsCompleted, setSessionsCompleted] = useState(0)
   const [totalXpEarned, setTotalXpEarned] = useState(0)
-  const [bgTheme, setBgTheme]         = useState(BG_THEMES[0])
+  const [bgTheme, setBgTheme]           = useState(BG_THEMES[0])
   const [showColorPicker, setShowColorPicker] = useState(false)
-  // Idée 2 — choix mode au démarrage
-  const [showModeChoice, setShowModeChoice] = useState(false)
-  // Idée 4 — pulse sur bouton fullscreen quand timer tourne
+  const [showModeChoice, setShowModeChoice]   = useState(false)
+  const [justFinished, setJustFinished]       = useState(false)
+  const modeChoiceTimeout = useRef<NodeJS.Timeout>()
 
-  const isCreative    = selected.id === "creative"
+  const isCreative     = selected.id === "creative"
   const activeDuration = isCreative ? customDuration : selected.duration
-  const totalTime     = activeDuration * 60
-  const progress      = ((totalTime - timeLeft) / totalTime) * 100
-  const circumference = 2 * Math.PI * 140
+  const totalTime      = activeDuration * 60
+  const progress       = ((totalTime - timeLeft) / totalTime) * 100
+  const circumference  = 2 * Math.PI * 140
 
   const fmt = (s: number) =>
     `${String(Math.floor(s / 60)).padStart(2,"0")}:${String(s % 60).padStart(2,"0")}`
@@ -47,6 +109,7 @@ export default function FocusPage() {
   const handleReset = useCallback(() => {
     setIsRunning(false)
     setTimeLeft((isCreative ? customDuration : selected.duration) * 60)
+    setJustFinished(false)
   }, [selected.duration, isCreative, customDuration])
 
   const handleSelectSession = (s: typeof sessionTypes[0]) => {
@@ -54,6 +117,7 @@ export default function FocusPage() {
     setTimeLeft((s.id==="creative" ? customDuration : s.duration) * 60)
     setIsRunning(false)
     setShowModeChoice(false)
+    setJustFinished(false)
   }
 
   const startHere = () => {
@@ -69,10 +133,9 @@ export default function FocusPage() {
 
   const handlePlayClick = () => {
     if (isRunning) { setIsRunning(false); return }
-    // Montre le choix de mode
+    clearTimeout(modeChoiceTimeout.current)
     setShowModeChoice(true)
-    // Auto-démarre ici après 4s si pas de choix
-    setTimeout(() => setShowModeChoice(false), 4000)
+    modeChoiceTimeout.current = setTimeout(() => setShowModeChoice(false), 4000)
   }
 
   const toggleFullscreen = () => {
@@ -86,14 +149,34 @@ export default function FocusPage() {
       id = setInterval(() => setTimeLeft(p => p - 1), 1000)
     } else if (timeLeft === 0 && isRunning) {
       setIsRunning(false)
+      setJustFinished(true)
+
+      // ── Son de fin ──
+      if (notifEnabled) playCompletionSound()
+
+      // ── Notification navigateur ──
+      if (notifEnabled && "Notification" in window && Notification.permission === "granted") {
+        new Notification("🎉 Session terminée !", {
+          body: `Tu as complété ${activeDuration} minutes de focus. +${activeDuration * 1} XP !`,
+          icon: "/favicon.ico",
+        })
+      }
+
       setSessionsCompleted(p => p + 1)
-      const xp = Math.round(activeDuration * 2.5)
+      const xp = activeDuration * 1
       setTotalXpEarned(p => p + xp)
       createFocusSession({ session_type:selected.id, duration:activeDuration, xp_earned:xp }).catch(console.error)
-      handleReset()
+      setTimeout(() => { handleReset(); setJustFinished(false) }, 3000)
     }
     return () => clearInterval(id)
-  }, [isRunning, timeLeft, activeDuration, selected.id, handleReset])
+  }, [isRunning, timeLeft, activeDuration, selected.id, notifEnabled, handleReset])
+
+  // Demande permission notifications au premier lancement
+  useEffect(() => {
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission()
+    }
+  }, [])
 
   useEffect(() => {
     const onChange = () => setIsFullscreen(!!document.fullscreenElement)
@@ -101,17 +184,15 @@ export default function FocusPage() {
     return () => document.removeEventListener("fullscreenchange", onChange)
   }, [])
 
-  // ── MODE PLEIN ÉCRAN AESTHETIC ─────────────────────────────────────────────
+  // ── MODE PLEIN ÉCRAN ─────────────────────────────────────────────────────
   if (isFullscreen) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center transition-all duration-700"
         style={bgTheme.style}>
-        {/* Cercles décoratifs */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           {Array.from({ length:5 }).map((_,i) => (
             <motion.div key={i} className="absolute rounded-full"
-              style={{ width:180+i*90, height:180+i*90, left:"50%", top:"50%",
-                x:"-50%", y:"-50%", border:"1px solid rgba(255,255,255,0.04)" }}
+              style={{ width:180+i*90, height:180+i*90, left:"50%", top:"50%", x:"-50%", y:"-50%", border:"1px solid rgba(255,255,255,0.04)" }}
               animate={{ rotate:360 }} transition={{ duration:20+i*5, repeat:Infinity, ease:"linear" }}/>
           ))}
           {Array.from({ length:20 }).map((_,i) => (
@@ -122,8 +203,21 @@ export default function FocusPage() {
           ))}
         </div>
 
+        {/* Message de fin en plein écran */}
+        <AnimatePresence>
+          {justFinished && (
+            <motion.div initial={{ opacity:0, scale:0.8 }} animate={{ opacity:1, scale:1 }} exit={{ opacity:0 }}
+              className="absolute inset-0 flex flex-col items-center justify-center z-20"
+              style={{ background:"rgba(0,0,0,0.5)", backdropFilter:"blur(4px)" }}>
+              <motion.div animate={{ scale:[1,1.15,1] }} transition={{ duration:0.6, repeat:2 }}
+                className="text-8xl mb-4">🎉</motion.div>
+              <div className="text-4xl font-black text-white mb-2" style={{ fontFamily:"'Sora',sans-serif" }}>Session terminée !</div>
+              <div className="text-white/60 text-lg">+{activeDuration} XP gagnés</div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <div className="relative flex flex-col items-center gap-8 z-10">
-          {/* Ring grand écran */}
           <div className="relative flex items-center justify-center" style={{ width:340, height:340 }}>
             <svg width="340" height="340" style={{ transform:"rotate(-90deg)", position:"absolute" }}>
               <circle cx="170" cy="170" r="155" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="3"/>
@@ -136,18 +230,15 @@ export default function FocusPage() {
             <div className="absolute inset-0 flex flex-col items-center justify-center">
               <motion.div key={timeLeft} initial={{ scale:1.02 }} animate={{ scale:1 }}
                 className="font-black text-white tracking-tight select-none"
-                style={{ fontSize:88, fontFamily:"'Sora',sans-serif", lineHeight:1,
-                  textShadow:"0 0 60px rgba(255,255,255,0.3)" }}>
+                style={{ fontSize:88, fontFamily:"'Sora',sans-serif", lineHeight:1, textShadow:"0 0 60px rgba(255,255,255,0.3)" }}>
                 {fmt(timeLeft)}
               </motion.div>
-              <div className="mt-3 text-sm font-medium uppercase tracking-widest"
-                style={{ color:"rgba(255,255,255,0.4)" }}>
+              <div className="mt-3 text-sm font-medium uppercase tracking-widest" style={{ color:"rgba(255,255,255,0.4)" }}>
                 Session {selected.name}
               </div>
             </div>
           </div>
 
-          {/* Contrôles plein écran */}
           <div className="flex items-center gap-6">
             <button onClick={handleReset}
               className="w-14 h-14 rounded-full flex items-center justify-center transition-all hover:scale-110"
@@ -157,8 +248,7 @@ export default function FocusPage() {
             <motion.button onClick={() => setIsRunning(p => !p)}
               whileHover={{ scale:1.08 }} whileTap={{ scale:0.95 }}
               className="w-24 h-24 rounded-full flex items-center justify-center text-white"
-              style={{ background:"rgba(255,255,255,0.2)", border:"1px solid rgba(255,255,255,0.4)",
-                boxShadow:"0 0 60px rgba(255,255,255,0.2)" }}>
+              style={{ background:"rgba(255,255,255,0.2)", border:"1px solid rgba(255,255,255,0.4)", boxShadow:"0 0 60px rgba(255,255,255,0.2)" }}>
               {isRunning ? <Pause size={36}/> : <Play size={36} style={{ marginLeft:4 }}/>}
             </motion.button>
             <button onClick={toggleFullscreen}
@@ -168,7 +258,14 @@ export default function FocusPage() {
             </button>
           </div>
 
-          {/* Palettes couleurs plein écran */}
+          {/* Notification toggle en plein écran */}
+          <button onClick={() => setNotifEnabled(p => !p)}
+            className="flex items-center gap-2 px-4 py-2 rounded-full text-xs transition-all"
+            style={{ background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.12)", color:"rgba(255,255,255,0.6)" }}>
+            {notifEnabled ? <Bell size={12}/> : <BellOff size={12}/>}
+            {notifEnabled ? "Son activé" : "Son désactivé"}
+          </button>
+
           <div className="flex items-center gap-3">
             {BG_THEMES.map(theme => (
               <button key={theme.id} onClick={() => setBgTheme(theme)}
@@ -183,7 +280,7 @@ export default function FocusPage() {
     )
   }
 
-  // ── VUE NORMALE ────────────────────────────────────────────────────────────
+  // ── VUE NORMALE ──────────────────────────────────────────────────────────
   return (
     <div className="relative min-h-[calc(100vh-8rem)]">
       <AnimatePresence>
@@ -203,12 +300,24 @@ export default function FocusPage() {
           <p className="text-muted-foreground">Restez concentré et gagnez des XP</p>
         </div>
         <div className="flex items-center gap-2">
+
+          {/* Son ambiance */}
           <Button variant="outline" size="icon" onClick={() => setSoundEnabled(!soundEnabled)}
-            className="border-white/[0.1] bg-white/[0.03] hover:bg-white/[0.06]">
+            className="border-white/[0.1] bg-white/[0.03] hover:bg-white/[0.06]"
+            title={soundEnabled ? "Désactiver son" : "Activer son"}>
             {soundEnabled ? <Volume2 className="h-4 w-4"/> : <VolumeX className="h-4 w-4"/>}
           </Button>
 
-          {/* Palette couleurs */}
+          {/* Notification fin de session */}
+          <Button variant="outline" size="icon"
+            onClick={() => setNotifEnabled(!notifEnabled)}
+            className={cn("border-white/[0.1] bg-white/[0.03] hover:bg-white/[0.06]",
+              notifEnabled && "border-violet-500/30 text-violet-400")}
+            title={notifEnabled ? "Son fin de session activé" : "Son fin de session désactivé"}>
+            {notifEnabled ? <Bell className="h-4 w-4"/> : <BellOff className="h-4 w-4"/>}
+          </Button>
+
+          {/* Palette */}
           <div className="relative">
             <Button variant="outline" size="icon" onClick={() => setShowColorPicker(!showColorPicker)}
               className="border-white/[0.1] bg-white/[0.03] hover:bg-white/[0.06]">
@@ -219,8 +328,7 @@ export default function FocusPage() {
                 <motion.div initial={{ opacity:0, y:8, scale:0.95 }} animate={{ opacity:1, y:0, scale:1 }}
                   exit={{ opacity:0, y:8, scale:0.95 }}
                   className="absolute right-0 top-12 z-50 rounded-2xl p-3 flex flex-col gap-2"
-                  style={{ background:"rgba(15,15,25,0.95)", border:"1px solid rgba(255,255,255,0.1)",
-                    backdropFilter:"blur(20px)", minWidth:150 }}>
+                  style={{ background:"rgba(15,15,25,0.95)", border:"1px solid rgba(255,255,255,0.1)", backdropFilter:"blur(20px)", minWidth:150 }}>
                   <div className="text-xs font-semibold text-white/50 mb-1">Couleur du fond</div>
                   {BG_THEMES.map(theme => (
                     <button key={theme.id} onClick={() => { setBgTheme(theme); setShowColorPicker(false) }}
@@ -236,11 +344,11 @@ export default function FocusPage() {
             </AnimatePresence>
           </div>
 
-          {/* ── IDÉE 4 — Bouton fullscreen qui pulse quand timer tourne ── */}
+          {/* Fullscreen avec pulse */}
           <div className="relative">
             {isRunning && (
               <motion.div className="absolute inset-0 rounded-lg"
-                animate={{ boxShadow:["0 0 0px rgba(139,92,246,0)", "0 0 16px rgba(139,92,246,0.7)", "0 0 0px rgba(139,92,246,0)"] }}
+                animate={{ boxShadow:["0 0 0px rgba(139,92,246,0)","0 0 16px rgba(139,92,246,0.7)","0 0 0px rgba(139,92,246,0)"] }}
                 transition={{ duration:2, repeat:Infinity }}/>
             )}
             <Button variant="outline" size="icon" onClick={toggleFullscreen}
@@ -259,9 +367,7 @@ export default function FocusPage() {
         {sessionTypes.map(s => (
           <button key={s.id} onClick={() => handleSelectSession(s)}
             className={cn("flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-all duration-200",
-              selected.id===s.id
-                ? `bg-gradient-to-r ${s.color} text-white shadow-lg`
-                : "bg-white/[0.03] text-muted-foreground hover:bg-white/[0.06] hover:text-white")}>
+              selected.id===s.id ? `bg-gradient-to-r ${s.color} text-white shadow-lg` : "bg-white/[0.03] text-muted-foreground hover:bg-white/[0.06] hover:text-white")}>
             <Clock className="h-4 w-4"/>
             {s.name}
             <span className="text-xs opacity-75">
@@ -291,10 +397,26 @@ export default function FocusPage() {
         )}
       </AnimatePresence>
 
-      {/* Timer + sidebar */}
       <div className="flex flex-col items-center justify-center gap-8 lg:flex-row lg:items-start lg:gap-12">
         <motion.div initial={{ opacity:0, scale:0.9 }} animate={{ opacity:1, scale:1 }} transition={{ delay:0.2 }}>
           <GlassCard className="p-8 sm:p-12 relative" glow={isRunning ? "purple" : "none"}>
+
+            {/* Message fin de session */}
+            <AnimatePresence>
+              {justFinished && (
+                <motion.div initial={{ opacity:0, scale:0.8 }} animate={{ opacity:1, scale:1 }} exit={{ opacity:0 }}
+                  className="absolute inset-0 rounded-2xl flex flex-col items-center justify-center z-20"
+                  style={{ background:"rgba(0,0,0,0.75)", backdropFilter:"blur(4px)" }}>
+                  <motion.div animate={{ scale:[1,1.2,1] }} transition={{ duration:0.5, repeat:2 }}
+                    className="text-5xl mb-3">🎉</motion.div>
+                  <div className="text-xl font-black text-white mb-1" style={{ fontFamily:"'Sora',sans-serif" }}>
+                    Session terminée !
+                  </div>
+                  <div className="text-sm text-yellow-400 font-semibold">+{activeDuration} XP gagnés</div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             <div className="relative flex items-center justify-center">
               <svg className="h-72 w-72 sm:h-80 sm:w-80 -rotate-90">
                 <circle cx="50%" cy="50%" r="140" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="12"/>
@@ -316,6 +438,11 @@ export default function FocusPage() {
                   {fmt(timeLeft)}
                 </motion.span>
                 <p className="mt-2 text-sm text-muted-foreground">Session {selected.name}</p>
+                {notifEnabled && (
+                  <div className="flex items-center gap-1 mt-2 text-[10px] text-white/25">
+                    <Bell size={10}/> Son activé
+                  </div>
+                )}
               </div>
             </div>
 
@@ -326,27 +453,21 @@ export default function FocusPage() {
                 <RotateCcw className="h-5 w-5"/>
               </Button>
 
-              {/* ── IDÉE 2 — Bouton Play avec choix de mode ── */}
+              {/* Bouton Play avec choix mode */}
               <div className="relative">
                 <motion.button onClick={handlePlayClick}
                   whileHover={{ scale:1.05 }} whileTap={{ scale:0.95 }}
                   className={cn("h-16 w-16 rounded-full text-white border-0 shadow-lg transition-all flex items-center justify-center",
-                    isRunning
-                      ? "bg-gradient-to-r from-orange-500 to-red-500"
-                      : "bg-gradient-to-r from-purple-500 to-cyan-500 hover:opacity-90")}>
+                    isRunning ? "bg-gradient-to-r from-orange-500 to-red-500" : "bg-gradient-to-r from-purple-500 to-cyan-500 hover:opacity-90")}>
                   {isRunning ? <Pause className="h-6 w-6"/> : <Play className="h-6 w-6 ml-1"/>}
                 </motion.button>
 
-                {/* Popup choix mode */}
                 <AnimatePresence>
                   {showModeChoice && (
-                    <motion.div
-                      initial={{ opacity:0, y:10, scale:0.9 }}
-                      animate={{ opacity:1, y:0, scale:1 }}
+                    <motion.div initial={{ opacity:0, y:10, scale:0.9 }} animate={{ opacity:1, y:0, scale:1 }}
                       exit={{ opacity:0, y:10, scale:0.9 }}
                       className="absolute bottom-20 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 w-52"
                       style={{ filter:"drop-shadow(0 8px 24px rgba(0,0,0,0.5))" }}>
-                      {/* Flèche */}
                       <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 rotate-45"
                         style={{ background:"rgba(15,15,25,0.95)", borderRight:"1px solid rgba(255,255,255,0.1)", borderBottom:"1px solid rgba(255,255,255,0.1)" }}/>
                       <div className="rounded-2xl overflow-hidden"
@@ -390,7 +511,7 @@ export default function FocusPage() {
           </GlassCard>
         </motion.div>
 
-        {/* Sidebar droite */}
+        {/* Sidebar */}
         <div className="w-full max-w-sm space-y-4">
           <motion.div initial={{ opacity:0, x:20 }} animate={{ opacity:1, x:0 }} transition={{ delay:0.3 }}>
             <GlassCard className="p-5">
@@ -431,9 +552,20 @@ export default function FocusPage() {
 
           <motion.div initial={{ opacity:0, x:20 }} animate={{ opacity:1, x:0 }} transition={{ delay:0.5 }}>
             <GlassCard className="p-5">
-              <h3 className="mb-2 font-semibold">💡 Le saviez-vous ?</h3>
+              <div className="flex items-center gap-2 mb-2">
+                <Bell className="h-4 w-4 text-violet-400"/>
+                <h3 className="font-semibold">Son de fin</h3>
+                <button onClick={() => setNotifEnabled(!notifEnabled)}
+                  className={cn("ml-auto w-9 h-5 rounded-full transition-all relative flex-shrink-0",
+                    notifEnabled ? "bg-violet-500" : "bg-white/[0.12]")}>
+                  <motion.div className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow"
+                    animate={{ left: notifEnabled ? "18px" : "2px" }} transition={{ type:"spring", stiffness:500, damping:30 }}/>
+                </button>
+              </div>
               <p className="text-sm text-muted-foreground">
-                Le mode grand écran aesthetic réduit les distractions et améliore la concentration. Essaie-le lors de ta prochaine session !
+                {notifEnabled
+                  ? "Un accord musical joue à la fin de chaque session."
+                  : "Le son de fin est désactivé."}
               </p>
             </GlassCard>
           </motion.div>
