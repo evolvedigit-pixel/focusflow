@@ -1,5 +1,7 @@
 import { SidebarProvider } from "@/components/ui/sidebar"
 import { Sidebar } from "@/components/sidebar"
+import { MorningPopup } from "@/components/morning-popup"
+import { WeeklyReport } from "@/components/weekly-report"
 import { ThemeProvider } from "@/components/theme-context"
 import { AccentPicker } from "@/components/accent-picker"
 
@@ -10,6 +12,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className="flex min-h-screen w-full">
           <Sidebar />
           <main className="flex-1 lg:pl-64">
+            {/* Barre accent picker en haut à droite */}
             <div className="fixed top-4 right-4 z-30 hidden lg:block">
               <AccentPicker />
             </div>
@@ -18,6 +21,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
           </main>
         </div>
+        <MorningPopup />
+        <WeeklyReport />
       </SidebarProvider>
     </ThemeProvider>
   )
