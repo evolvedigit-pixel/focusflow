@@ -1,260 +1,369 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { motion } from "framer-motion"
-import { GlassCard } from "@/components/ui/glass-card"
-import { Progress } from "@/components/ui/progress"
-import { AnimatedCounter } from "@/components/animated-counter"
-import { getProfile, type Profile } from "@/lib/db"
-import { Trophy, Flame, Clock, Zap, Target, Loader2, Edit3, Check } from "lucide-react"
-import { cn } from "@/lib/utils"
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
+import { useState, useEffect, useRef } from "react"
+import { motion, AnimatePresence } from "framer-motion"
 import { createClient } from "@/lib/supabase/client"
+import { GlassCard } from "@/components/ui/glass-card"
+import { getProfile, type Profile } from "@/lib/db"
+import {
+  Camera, Edit3, Check, X, Loader2, Zap, Clock,
+  Target, Flame, Trophy, Lock, Upload,
+} from "lucide-react"
+import { cn } from "@/lib/utils"
 
-function getHeatmapColor(count: number) {
-  if (count === 0) return "rgba(139,92,246,0.06)"
-  if (count === 1) return "rgba(139,92,246,0.25)"
-  if (count === 2) return "rgba(139,92,246,0.5)"
-  if (count === 3) return "rgba(139,92,246,0.7)"
-  return "#8b5cf6"
+const JUNGLE_RANKS = [
+  { name:"Novice des Racines",      emoji:"🌱", color:"#6b7280", minHours:0   },
+  { name:"Protecteur des Feuilles", emoji:"🍃", color:"#22c55e", minHours:5   },
+  { name:"Gardien de la Canopée",   emoji:"🌳", color:"#06b6d4", minHours:15  },
+  { name:"Sage Tropical",           emoji:"🦋", color:"#8b5cf6", minHours:40  },
+  { name:"Maître des Brumes",       emoji:"🌫️",  color:"#a855f7", minHours:80  },
+  { name:"Esprit de la Jungle",     emoji:"✨", color:"#f59e0b", minHours:150 },
+  { name:"Souverain de l'Équilibre",emoji:"👑", color:"#ef4444", minHours:300 },
+]
+
+const CUSTOM_TITLES = [
+  { id:"disciplined",  label:"Discipliné",       emoji:"⚡", unlockHours:0   },
+  { id:"focused",      label:"Focalisé",          emoji:"🎯", unlockHours:5   },
+  { id:"consistent",   label:"Régulier",          emoji:"🔥", unlockHours:10  },
+  { id:"scholar",      label:"Érudit",            emoji:"📚", unlockHours:20  },
+  { id:"warrior",      label:"Guerrier",          emoji:"⚔️",  unlockHours:40  },
+  { id:"master",       label:"Maître",            emoji:"🧠", unlockHours:80  },
+  { id:"legend",       label:"Légende",           emoji:"👑", unlockHours:150 },
+  { id:"unstoppable",  label:"Inarrêtable",       emoji:"🚀", unlockHours:300 },
+]
+
+const BADGES = [
+  { id:"first_session",  label:"Premier pas",       emoji:"🎯", desc:"1ère session focus",    check:(p:Profile)=>(p.sessions_completed??0)>=1   },
+  { id:"ten_sessions",   label:"En feu",            emoji:"🔥", desc:"10 sessions complétées",(check:(p:Profile)=>(p.sessions_completed??0)>=10  },
+  { id:"xp500",          label:"Précieux",          emoji:"💎", desc:"500 XP gagnés",          check:(p:Profile)=>((p.xp??0)+(p.level-1)*100)>=500},
+  { id:"xp1000",         label:"Étoile",            emoji:"⭐", desc:"1000 XP gagnés",         check:(p:Profile)=>((p.xp??0)+(p.level-1)*100)>=1000},
+  { id:"streak7",        label:"Semaine parfaite",  emoji:"📅", desc:"7 jours de streak",      check:(p:Profile)=>(p.streak??0)>=7              },
+  { id:"streak30",       label:"Ironman",           emoji:"🦾", desc:"30 jours de streak",     check:(p:Profile)=>(p.streak??0)>=30             },
+  { id:"focus10h",       label:"Marathonien",       emoji:"⏱️",  desc:"10h de focus total",     check:(p:Profile)=>(p.total_focus_hours??0)>=10  },
+  { id:"focus50h",       label:"Sage du temps",     emoji:"🌟", desc:"50h de focus total",     check:(p:Profile)=>(p.total_focus_hours??0)>=50  },
+  { id:"level5",         label:"Ascendant",         emoji:"🔮", desc:"Atteindre le niveau 5",  check:(p:Profile)=>(p.level??1)>=5               },
+]
+
+function getJungleRank(hours: number) {
+  return [...JUNGLE_RANKS].reverse().find(r => hours >= r.minHours) ?? JUNGLE_RANKS[0]
 }
 
-function getPlantStage(h: number) {
-  if (h < 3)   return { name:"Graine silencieuse",    emoji:"🪴", level:1, next:3  }
-  if (h < 10)  return { name:"Jeune pousse",          emoji:"🌱", level:2, next:10 }
-  if (h < 25)  return { name:"Plantule disciplinée",  emoji:"🌿", level:3, next:25 }
-  if (h < 50)  return { name:"Arbre du calme",        emoji:"🌲", level:4, next:50 }
-  if (h < 100) return { name:"Gardien de la Canopée", emoji:"🌳", level:5, next:100 }
-  if (h < 200) return { name:"Maître des Saisons",    emoji:"🎋", level:6, next:200 }
-  return              { name:"Souverain de l'Équilibre", emoji:"🐉", level:7, next:300 }
-}
-
-function getJungleRank(h: number) {
-  if (h < 5)   return { rank:"Novice des Racines",      color:"#6b7280" }
-  if (h < 15)  return { rank:"Protecteur des Feuilles", color:"#22c55e" }
-  if (h < 40)  return { rank:"Gardien de la Canopée",   color:"#06b6d4" }
-  if (h < 80)  return { rank:"Sage Tropical",           color:"#8b5cf6" }
-  if (h < 150) return { rank:"Maître des Brumes",       color:"#a855f7" }
-  if (h < 300) return { rank:"Esprit de la Jungle",     color:"#f59e0b" }
-  return              { rank:"Souverain de l'Équilibre", color:"#ef4444" }
-}
-
-// Badges débloqués selon les stats
-function getBadges(p: Profile | null, totalSessions: number) {
-  const badges = []
-  if (totalSessions >= 1)  badges.push({ emoji:"🎯", name:"Premier pas",    desc:"1ère session focus" })
-  if (totalSessions >= 10) badges.push({ emoji:"🔥", name:"En feu",         desc:"10 sessions complétées" })
-  if (totalSessions >= 50) badges.push({ emoji:"⚡", name:"Électrique",     desc:"50 sessions complétées" })
-  if ((p?.total_focus_hours??0) >= 10)  badges.push({ emoji:"⏱️",  name:"Concentré",    desc:"10h de focus total" })
-  if ((p?.total_focus_hours??0) >= 50)  badges.push({ emoji:"🏆", name:"Champion",      desc:"50h de focus total" })
-  if ((p?.streak??0) >= 3)  badges.push({ emoji:"📅", name:"Régulier",      desc:"3 jours de suite" })
-  if ((p?.streak??0) >= 7)  badges.push({ emoji:"👑", name:"Invincible",    desc:"7 jours de suite" })
-  if ((p?.xp??0) >= 500)   badges.push({ emoji:"💎", name:"Précieux",       desc:"500 XP gagnés" })
-  if ((p?.xp??0) >= 1000)  badges.push({ emoji:"🌟", name:"Étoile",         desc:"1000 XP gagnés" })
-  return badges
+function getPlantStage(hours: number) {
+  if (hours < 3)   return { emoji:"🪴", name:"Graine",       next:3,   color:"#6b7280" }
+  if (hours < 10)  return { emoji:"🌱", name:"Jeune pousse", next:10,  color:"#22c55e" }
+  if (hours < 25)  return { emoji:"🌿", name:"Plantule",     next:25,  color:"#16a34a" }
+  if (hours < 50)  return { emoji:"🌲", name:"Arbre",        next:50,  color:"#06b6d4" }
+  if (hours < 100) return { emoji:"🌳", name:"Gardien",      next:100, color:"#8b5cf6" }
+  return                  { emoji:"🐉", name:"Souverain",    next:999, color:"#f59e0b" }
 }
 
 export default function ProfilePage() {
-  const [profile, setProfile]     = useState<Profile|null>(null)
-  const [monthlyData, setMonthlyData] = useState<{month:string;xp:number;hours:number}[]>([])
-  const [heatmap, setHeatmap]     = useState<{date:string;count:number}[]>([])
-  const [totalSessions, setTotalSessions] = useState(0)
-  const [loading, setLoading]     = useState(true)
-  const [editingBio, setEditingBio] = useState(false)
-  const [bio, setBio]             = useState("")
-  const [tempBio, setTempBio]     = useState("")
+  const [profile, setProfile]         = useState<Profile|null>(null)
+  const [loading, setLoading]         = useState(true)
+  const [editingBio, setEditingBio]   = useState(false)
+  const [bio, setBio]                 = useState("")
+  const [customTitle, setCustomTitle] = useState<string>("")
+  const [showTitlePicker, setShowTitlePicker] = useState(false)
+  const [avatarUrl, setAvatarUrl]     = useState<string|null>(null)
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     async function load() {
       const p = await getProfile()
+      if (!p) return
       setProfile(p)
-      setBio(p?.full_name ? `Membre FocusFlow passionné par la productivité.` : "")
-
-      if (p) {
-        const supabase = createClient()
-        const { data: { user } } = await supabase.auth.getUser()
-        if (user) {
-          const sixMonthsAgo = new Date()
-          sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5)
-
-          const { data: sessions } = await supabase
-            .from("focus_sessions")
-            .select("duration, xp_earned, completed_at")
-            .eq("user_id", user.id)
-            .gte("completed_at", sixMonthsAgo.toISOString())
-
-          setTotalSessions(sessions?.length ?? 0)
-
-          const months = ["Jan","Fév","Mar","Avr","Mai","Jun","Jul","Aoû","Sep","Oct","Nov","Déc"]
-          const monthMap: Record<string,{xp:number;hours:number}> = {}
-          for (let i=5; i>=0; i--) {
-            const d = new Date(); d.setMonth(d.getMonth()-i)
-            monthMap[months[d.getMonth()]] = {xp:0,hours:0}
-          }
-          for (const s of sessions??[]) {
-            const m = months[new Date(s.completed_at).getMonth()]
-            if (monthMap[m]) { monthMap[m].xp += s.xp_earned; monthMap[m].hours += s.duration/60 }
-          }
-          setMonthlyData(Object.entries(monthMap).map(([month,v]) => ({month,...v})))
-
-          const today = new Date()
-          const { data: heatSessions } = await supabase
-            .from("focus_sessions")
-            .select("completed_at")
-            .eq("user_id", user.id)
-            .gte("completed_at", new Date(Date.now()-84*86400000).toISOString())
-
-          const countMap: Record<string,number> = {}
-          for (const s of heatSessions??[]) {
-            const d = s.completed_at.split("T")[0]
-            countMap[d] = (countMap[d]??0)+1
-          }
-          const heatmapArr = []
-          for (let i=83; i>=0; i--) {
-            const d = new Date(today); d.setDate(d.getDate()-i)
-            const key = d.toISOString().split("T")[0]
-            heatmapArr.push({date:key, count:countMap[key]??0})
-          }
-          setHeatmap(heatmapArr)
-        }
-      }
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const { data } = await supabase.from("profiles")
+        .select("bio, custom_title, avatar_url").eq("id", user.id).single()
+      setBio(data?.bio ?? "")
+      setCustomTitle(data?.custom_title ?? "")
+      setAvatarUrl(data?.avatar_url ?? p.avatar_url ?? null)
       setLoading(false)
     }
     load()
   }, [])
 
-  if (loading) return (
+  // ── Upload photo ──────────────────────────────────────────────────────────
+  async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file || !profile) return
+    if (file.size > 2 * 1024 * 1024) { alert("Image max 2MB"); return }
+
+    setUploadingAvatar(true)
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    const ext  = file.name.split(".").pop()
+    const path = `avatars/${user.id}.${ext}`
+
+    const { error: uploadError } = await supabase.storage
+      .from("avatars").upload(path, file, { upsert:true })
+
+    if (!uploadError) {
+      const { data: { publicUrl } } = supabase.storage.from("avatars").getPublicUrl(path)
+      await supabase.from("profiles").update({ avatar_url:publicUrl }).eq("id", user.id)
+      setAvatarUrl(publicUrl + "?t=" + Date.now())
+    }
+    setUploadingAvatar(false)
+  }
+
+  // ── Sauvegarder bio ───────────────────────────────────────────────────────
+  async function saveBio() {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    await supabase.from("profiles").update({ bio }).eq("id", user.id)
+    setEditingBio(false)
+  }
+
+  // ── Sauvegarder titre ─────────────────────────────────────────────────────
+  async function saveTitle(titleId: string) {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    await supabase.from("profiles").update({ custom_title:titleId }).eq("id", user.id)
+    setCustomTitle(titleId)
+    setShowTitlePicker(false)
+  }
+
+  if (loading || !profile) return (
     <div className="flex min-h-[60vh] items-center justify-center">
-      <Loader2 className="h-8 w-8 animate-spin text-purple-400"/>
+      <Loader2 className="h-8 w-8 animate-spin text-violet-400"/>
     </div>
   )
 
-  const p = profile
-  const xpProgress   = p ? (p.xp/p.xp_to_next_level)*100 : 0
-  const totalHours   = p?.total_focus_hours ?? 0
-  const plant        = getPlantStage(totalHours)
-  const jungleRank   = getJungleRank(totalHours)
-  const badges       = getBadges(p, totalSessions)
-  const displayName  = p?.name ?? p?.full_name ?? "Utilisateur"
-  const initials     = displayName.slice(0,2).toUpperCase()
-  const plantProgress = Math.min((totalHours/plant.next)*100, 100)
+  const hours   = profile.total_focus_hours ?? 0
+  const rank    = getJungleRank(hours)
+  const plant   = getPlantStage(hours)
+  const xp      = profile.xp ?? 0
+  const xpToNext = profile.xp_to_next_level ?? 100
+  const xpPct   = Math.min((xp/xpToNext)*100, 100)
+  const displayName = profile.name ?? profile.full_name ?? "Explorateur"
+  const initials    = displayName.slice(0,2).toUpperCase()
 
-  const stats = [
-    { label:"Sessions totales", value:totalSessions,                       icon:Target, color:"from-purple-500 to-purple-600" },
-    { label:"Heures de focus",  value:Math.round(totalHours),              icon:Clock,  color:"from-cyan-500 to-cyan-600"    },
-    { label:"Série en cours",   value:p?.streak??0, suffix:" j",           icon:Flame,  color:"from-orange-500 to-red-500"   },
-    { label:"Productivité",     value:p?.productivity_score??0, suffix:"%", icon:Trophy, color:"from-yellow-500 to-amber-500" },
-  ]
+  const selectedTitle = CUSTOM_TITLES.find(t => t.id===customTitle)
+  const unlockedTitles = CUSTOM_TITLES.filter(t => hours >= t.unlockHours)
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 max-w-4xl mx-auto">
 
       {/* ── CARTE PROFIL PRINCIPALE ── */}
       <motion.div initial={{ opacity:0, y:-10 }} animate={{ opacity:1, y:0 }}>
-        <GlassCard className="p-6 sm:p-8 relative overflow-hidden" glow="purple">
-          <div className="absolute -right-16 -top-16 h-52 w-52 rounded-full bg-violet-500/10 blur-3xl pointer-events-none"/>
-          <div className="absolute -left-12 bottom-0 h-40 w-40 rounded-full bg-cyan-400/8 blur-3xl pointer-events-none"/>
+        <GlassCard className="p-6 relative overflow-hidden" glow="purple">
+          <div className="absolute -right-16 -top-16 w-48 h-48 rounded-full pointer-events-none"
+            style={{ background:`radial-gradient(circle,${rank.color}15,transparent 70%)`, filter:"blur(20px)" }}/>
 
-          <div className="relative flex flex-col gap-6 sm:flex-row sm:items-start">
-            {/* Avatar + plante */}
-            <div className="flex items-start gap-5">
-              <div className="relative">
-                <div className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-cyan-500 text-3xl font-bold text-white shadow-[0_0_30px_rgba(147,51,234,0.4)]">
-                  {initials}
-                </div>
-                <div className="absolute -bottom-2 -right-2 flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-cyan-500 text-base shadow-lg border-2 border-background">
-                  {p?.level??1}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 relative z-10">
+
+            {/* ── AVATAR avec upload ── */}
+            <div className="relative flex-shrink-0">
+              <div className="w-24 h-24 rounded-full overflow-hidden relative"
+                style={{ boxShadow:`0 0 24px ${rank.color}40` }}>
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover"/>
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-2xl font-black text-white"
+                    style={{ background:"linear-gradient(135deg,#7c3aed,#6366f1)" }}>
+                    {initials}
+                  </div>
+                )}
+                {uploadingAvatar && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                    <Loader2 className="h-6 w-6 animate-spin text-white"/>
+                  </div>
+                )}
+              </div>
+
+              {/* Bouton upload */}
+              <motion.button whileHover={{ scale:1.1 }} whileTap={{ scale:0.9 }}
+                onClick={() => fileInputRef.current?.click()}
+                className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full flex items-center justify-center text-white shadow-lg"
+                style={{ background:"linear-gradient(135deg,#7c3aed,#6366f1)" }}
+                title="Changer la photo">
+                <Camera className="h-3.5 w-3.5"/>
+              </motion.button>
+              <input ref={fileInputRef} type="file" accept="image/*" className="hidden"
+                onChange={handleAvatarUpload}/>
+
+              {/* Badge niveau */}
+              <div className="absolute -top-1 -left-1 flex h-7 w-7 items-center justify-center rounded-full text-xs font-black text-white"
+                style={{ background:"linear-gradient(135deg,#7c3aed,#6366f1)", border:"2px solid #0d0d1a", fontSize:11 }}>
+                {profile.level}
+              </div>
+            </div>
+
+            {/* Infos */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap mb-1">
+                <h1 className="text-2xl font-black text-white" style={{ fontFamily:"'Sora',sans-serif" }}>
+                  {displayName}
+                </h1>
+                {/* Badge rang jungle */}
+                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold"
+                  style={{ background:`${rank.color}20`, border:`1px solid ${rank.color}40`, color:rank.color }}>
+                  {rank.emoji} {rank.name}
                 </div>
               </div>
 
-              <div className="flex-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h1 className="text-2xl font-bold">{displayName}</h1>
-                  <span className="text-xs px-2 py-1 rounded-full font-semibold"
-                    style={{ background:`${jungleRank.color}20`, color:jungleRank.color, border:`1px solid ${jungleRank.color}40` }}>
-                    {jungleRank.rank}
-                  </span>
-                </div>
-                <p className="text-muted-foreground text-sm mt-1">
-                  Membre depuis{" "}
-                  {p?.joined_date
-                    ? new Date(p.joined_date).toLocaleDateString("fr-FR",{month:"long",year:"numeric"})
-                    : "—"}
-                </p>
+              {/* Titre personnalisé */}
+              <div className="flex items-center gap-2 mb-3">
+                {selectedTitle ? (
+                  <div className="flex items-center gap-1.5 text-sm font-semibold"
+                    style={{ color:"rgba(255,255,255,0.6)" }}>
+                    <span>{selectedTitle.emoji}</span>
+                    <span>{selectedTitle.label}</span>
+                  </div>
+                ) : (
+                  <span className="text-sm text-white/30 italic">Aucun titre sélectionné</span>
+                )}
+                <button onClick={() => setShowTitlePicker(true)}
+                  className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-md text-violet-400 border border-violet-500/30 hover:bg-violet-500/10 transition-all">
+                  <Edit3 size={9}/> Changer
+                </button>
+              </div>
 
-                {/* Bio éditable */}
-                <div className="mt-3">
-                  {editingBio ? (
-                    <div className="flex items-center gap-2">
-                      <input value={tempBio} onChange={e=>setTempBio(e.target.value)}
-                        className="flex-1 text-sm rounded-lg px-3 py-1.5 outline-none"
-                        style={{ background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.15)", color:"#fff" }}
-                        placeholder="Décris-toi en une phrase..."/>
-                      <button onClick={() => { setBio(tempBio); setEditingBio(false) }}
-                        className="w-8 h-8 rounded-lg flex items-center justify-center"
-                        style={{ background:"rgba(139,92,246,0.2)", color:"#a855f7" }}>
+              {/* Bio éditable */}
+              <div className="mb-3">
+                {editingBio ? (
+                  <div className="flex items-start gap-2">
+                    <textarea value={bio} onChange={e => setBio(e.target.value)} rows={2} autoFocus
+                      className="flex-1 rounded-xl bg-white/[0.04] border border-violet-500/40 px-3 py-2 text-sm text-white resize-none focus:outline-none"
+                      placeholder="Décris-toi en quelques mots..."/>
+                    <div className="flex flex-col gap-1">
+                      <button onClick={saveBio}
+                        className="w-7 h-7 flex items-center justify-center rounded-lg bg-green-500/20 text-green-400 hover:bg-green-500/30">
                         <Check size={14}/>
                       </button>
+                      <button onClick={() => setEditingBio(false)}
+                        className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/[0.05] text-white/40 hover:bg-white/[0.1]">
+                        <X size={14}/>
+                      </button>
                     </div>
-                  ) : (
-                    <div className="flex items-center gap-2 group cursor-pointer" onClick={() => { setTempBio(bio); setEditingBio(true) }}>
-                      <p className="text-sm" style={{ color:"rgba(255,255,255,0.4)" }}>
-                        {bio || "Clique pour ajouter une bio..."}
-                      </p>
-                      <Edit3 size={12} className="opacity-0 group-hover:opacity-100 transition-opacity" style={{ color:"rgba(255,255,255,0.3)" }}/>
-                    </div>
-                  )}
-                </div>
+                  </div>
+                ) : (
+                  <button onClick={() => setEditingBio(true)}
+                    className="text-left text-sm text-white/50 hover:text-white/80 transition-colors flex items-center gap-2 group">
+                    <span>{bio || "Clique pour ajouter une bio..."}</span>
+                    <Edit3 size={12} className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"/>
+                  </button>
+                )}
+              </div>
+
+              <div className="text-xs text-white/25">
+                Membre depuis {new Date(profile.joined_date).toLocaleDateString("fr-FR",{month:"long",year:"numeric"})}
               </div>
             </div>
 
             {/* XP + plante */}
-            <div className="sm:ml-auto flex flex-col items-end gap-3 min-w-52">
-              {/* Plante */}
-              <div className="flex items-center gap-2 rounded-xl px-3 py-2 w-full"
-                style={{ background:"rgba(74,222,128,0.06)", border:"1px solid rgba(74,222,128,0.12)" }}>
-                <motion.span animate={{ y:[0,-3,0] }} transition={{ duration:2, repeat:Infinity }}>
-                  {plant.emoji}
-                </motion.span>
-                <div className="flex-1">
-                  <div className="text-xs font-semibold" style={{ color:"#d1fae5" }}>{plant.name}</div>
-                  <div className="h-1 rounded-full mt-1 overflow-hidden" style={{ background:"rgba(74,222,128,0.1)" }}>
-                    <motion.div className="h-full rounded-full"
-                      style={{ background:"linear-gradient(90deg,#16a34a,#4ade80)" }}
-                      initial={{ width:0 }} animate={{ width:`${plantProgress}%` }} transition={{ duration:1 }}/>
-                  </div>
-                  <div className="text-[9px] mt-0.5" style={{ color:"rgba(74,222,128,0.4)" }}>
-                    {Math.round(totalHours)}h / {plant.next}h
-                  </div>
+            <div className="flex flex-col items-center gap-3 flex-shrink-0">
+              <div className="text-center px-4 py-3 rounded-2xl"
+                style={{ background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.06)" }}>
+                <motion.div animate={{ y:[0,-4,0] }} transition={{ duration:2.5, repeat:Infinity }}
+                  className="text-3xl mb-1">{plant.emoji}</motion.div>
+                <div className="text-xs text-white/40">{plant.name}</div>
+                <div className="mt-2 text-xs font-bold" style={{ color:rank.color }}>
+                  Niveau {profile.level}
                 </div>
-              </div>
-
-              {/* XP bar */}
-              <div className="w-full">
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-xs text-muted-foreground">Niveau {p?.level??1} → {(p?.level??1)+1}</span>
-                  <span className="text-xs font-medium">{p?.xp?.toLocaleString()} / {p?.xp_to_next_level?.toLocaleString()} XP</span>
+                <div className="h-1.5 w-24 rounded-full mt-1 overflow-hidden" style={{ background:"rgba(255,255,255,0.06)" }}>
+                  <motion.div className="h-full rounded-full"
+                    style={{ background:`linear-gradient(90deg,${rank.color},#a855f7)` }}
+                    initial={{ width:0 }} animate={{ width:`${xpPct}%` }} transition={{ duration:1 }}/>
                 </div>
-                <Progress value={xpProgress} className="h-2"/>
-                <p className="mt-1 text-xs text-muted-foreground text-right">{Math.round(xpProgress)}% vers le niveau {(p?.level??1)+1}</p>
+                <div className="text-[9px] text-white/25 mt-1">{xp}/{xpToNext} XP</div>
               </div>
             </div>
           </div>
         </GlassCard>
       </motion.div>
 
+      {/* ── TITRE PICKER ── */}
+      <AnimatePresence>
+        {showTitlePicker && (
+          <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ backgroundColor:"rgba(0,0,0,0.7)", backdropFilter:"blur(8px)" }}
+            onClick={e => { if (e.target===e.currentTarget) setShowTitlePicker(false) }}>
+            <motion.div initial={{ scale:0.94, y:16 }} animate={{ scale:1, y:0 }} exit={{ scale:0.94 }}
+              transition={{ type:"spring", stiffness:400, damping:30 }}
+              className="w-full max-w-md rounded-2xl overflow-hidden"
+              style={{ background:"rgba(10,10,18,0.98)", border:"1px solid rgba(255,255,255,0.1)", boxShadow:"0 24px 80px rgba(0,0,0,0.8)" }}>
+              <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.07]">
+                <h3 className="font-semibold text-white">Choisir un titre</h3>
+                <button onClick={() => setShowTitlePicker(false)}
+                  className="w-7 h-7 flex items-center justify-center rounded-lg text-white/40 hover:text-white hover:bg-white/[0.08]">
+                  <X size={16}/>
+                </button>
+              </div>
+              <div className="p-4 space-y-2 max-h-96 overflow-y-auto">
+                {/* Aucun titre */}
+                <button onClick={() => saveTitle("")}
+                  className={cn("w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-left",
+                    customTitle==="" ? "bg-white/[0.08] border border-white/[0.15]" : "hover:bg-white/[0.04] border border-transparent")}>
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg"
+                    style={{ background:"rgba(255,255,255,0.05)" }}>🚫</div>
+                  <div>
+                    <div className="text-sm font-medium text-white/60">Aucun titre</div>
+                    <div className="text-[10px] text-white/25">Afficher uniquement le rang</div>
+                  </div>
+                  {customTitle==="" && <Check size={14} className="ml-auto text-green-400"/>}
+                </button>
+
+                {CUSTOM_TITLES.map(title => {
+                  const unlocked = hours >= title.unlockHours
+                  const selected = customTitle===title.id
+                  return (
+                    <button key={title.id}
+                      onClick={() => unlocked && saveTitle(title.id)}
+                      disabled={!unlocked}
+                      className={cn("w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-left",
+                        !unlocked && "opacity-40 cursor-not-allowed",
+                        selected ? "border border-violet-500/40" : "hover:bg-white/[0.04] border border-transparent")}
+                      style={selected ? { background:"rgba(139,92,246,0.1)" } : {}}>
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg"
+                        style={{ background:unlocked ? "rgba(139,92,246,0.15)" : "rgba(255,255,255,0.03)" }}>
+                        {unlocked ? title.emoji : "🔒"}
+                      </div>
+                      <div className="flex-1">
+                        <div className={cn("text-sm font-medium", unlocked ? "text-white" : "text-white/40")}>
+                          {title.emoji} {title.label}
+                        </div>
+                        <div className="text-[10px] text-white/25">
+                          {unlocked ? "Débloqué ✓" : `Débloquer à ${title.unlockHours}h de focus`}
+                        </div>
+                      </div>
+                      {selected && <Check size={14} className="ml-auto text-green-400 flex-shrink-0"/>}
+                    </button>
+                  )
+                })}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* ── STATS ── */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat,i) => (
-          <motion.div key={stat.label} initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.1+i*0.05 }}>
-            <GlassCard className="p-5 text-center">
-              <div className={`mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br ${stat.color} opacity-80`}>
-                <stat.icon className="h-5 w-5 text-white"/>
+        {[
+          { icon:Target, label:"Sessions totales",  value:profile.sessions_completed??0, color:"from-purple-500 to-purple-600" },
+          { icon:Clock,  label:"Heures de focus",   value:`${Math.round(hours)}h`,        color:"from-cyan-500 to-cyan-600"   },
+          { icon:Flame,  label:"Série en cours",    value:`${profile.streak??0}j`,        color:"from-orange-500 to-red-500"  },
+          { icon:Zap,    label:"Productivité",      value:`${profile.productivity_score??0}%`, color:"from-yellow-500 to-amber-500"},
+        ].map((s,i) => (
+          <motion.div key={i} initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.1+i*0.05 }}>
+            <GlassCard className="p-5">
+              <div className="flex items-center gap-3">
+                <div className={`flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br ${s.color} opacity-80`}>
+                  <s.icon className="h-5 w-5 text-white"/>
+                </div>
+                <div>
+                  <div className="text-xl font-bold text-white">{s.value}</div>
+                  <div className="text-xs text-white/40">{s.label}</div>
+                </div>
               </div>
-              <p className="text-2xl font-bold">
-                <AnimatedCounter value={stat.value}/>{(stat as any).suffix??''}
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">{stat.label}</p>
             </GlassCard>
           </motion.div>
         ))}
@@ -263,98 +372,37 @@ export default function ProfilePage() {
       {/* ── BADGES ── */}
       <motion.div initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.2 }}>
         <GlassCard className="p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <span className="text-lg">🏅</span>
-            <h2 className="font-semibold">Badges débloqués</h2>
-            <span className="text-xs px-2 py-0.5 rounded-full ml-auto"
-              style={{ background:"rgba(139,92,246,0.1)", color:"#a855f7", border:"1px solid rgba(139,92,246,0.2)" }}>
-              {badges.length} / 9
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="font-semibold text-white flex items-center gap-2">
+              🏅 Badges débloqués
+            </h2>
+            <span className="text-xs text-white/30">
+              {BADGES.filter(b => b.check(profile)).length}/{BADGES.length}
             </span>
           </div>
-          {badges.length === 0 ? (
-            <div className="flex h-20 items-center justify-center text-muted-foreground text-sm">
-              Complète des sessions pour débloquer des badges 🎯
-            </div>
-          ) : (
-            <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
-              {badges.map((badge,i) => (
-                <motion.div key={i}
-                  initial={{ opacity:0, scale:0.8 }} animate={{ opacity:1, scale:1 }} transition={{ delay:0.25+i*0.05 }}
-                  className="flex flex-col items-center gap-1.5 rounded-xl p-3 text-center cursor-default"
-                  style={{ background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.07)" }}
-                  title={badge.desc}
-                  whileHover={{ scale:1.05, borderColor:"rgba(139,92,246,0.3)" }}>
-                  <span style={{ fontSize:28 }}>{badge.emoji}</span>
-                  <span className="text-[10px] font-semibold text-white/70">{badge.name}</span>
-                  <span className="text-[9px] text-white/30">{badge.desc}</span>
+          <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
+            {BADGES.map((badge,i) => {
+              const unlocked = badge.check(profile)
+              return (
+                <motion.div key={badge.id}
+                  initial={{ opacity:0, scale:0.8 }} animate={{ opacity:1, scale:1 }}
+                  transition={{ delay:0.05*i }}
+                  title={`${badge.label} — ${badge.desc}`}
+                  className={cn("flex flex-col items-center gap-2 p-3 rounded-xl transition-all",
+                    unlocked ? "cursor-default" : "opacity-30")}
+                  style={{
+                    background: unlocked ? "rgba(139,92,246,0.08)" : "rgba(255,255,255,0.02)",
+                    border:     unlocked ? "1px solid rgba(139,92,246,0.2)" : "1px solid rgba(255,255,255,0.05)",
+                  }}>
+                  <div className="text-3xl">{unlocked ? badge.emoji : "🔒"}</div>
+                  <div className={cn("text-[10px] text-center font-medium leading-tight",
+                    unlocked ? "text-white/70" : "text-white/25")}>
+                    {badge.label}
+                  </div>
+                  {unlocked && <div className="text-[9px] text-white/30 text-center">{badge.desc}</div>}
                 </motion.div>
-              ))}
-              {/* Badges verrouillés */}
-              {Array.from({ length: Math.max(0, 9-badges.length) }).map((_,i) => (
-                <div key={`locked-${i}`}
-                  className="flex flex-col items-center gap-1.5 rounded-xl p-3 text-center"
-                  style={{ background:"rgba(255,255,255,0.01)", border:"1px dashed rgba(255,255,255,0.06)" }}>
-                  <span style={{ fontSize:28, filter:"grayscale(1)", opacity:0.2 }}>🔒</span>
-                  <span className="text-[9px] text-white/15">Verrouillé</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </GlassCard>
-      </motion.div>
-
-      {/* ── PROGRESSION MENSUELLE ── */}
-      <motion.div initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.3 }}>
-        <GlassCard className="p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Zap className="h-5 w-5 text-yellow-400"/>
-            <h2 className="font-semibold">Progression mensuelle</h2>
-          </div>
-          {monthlyData.every(d => d.xp===0) ? (
-            <div className="flex h-40 items-center justify-center text-muted-foreground text-sm">
-              Complétez des sessions focus pour voir vos progrès.
-            </div>
-          ) : (
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={monthlyData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)"/>
-                <XAxis dataKey="month" stroke="rgba(255,255,255,0.4)" fontSize={12}/>
-                <YAxis stroke="rgba(255,255,255,0.4)" fontSize={12}/>
-                <Tooltip contentStyle={{ background:"rgba(0,0,0,0.8)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:"8px" }}/>
-                <Bar dataKey="xp" fill="url(#barGrad)" radius={[4,4,0,0]} name="XP"/>
-                <defs>
-                  <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#a855f7"/>
-                    <stop offset="100%" stopColor="#22d3ee"/>
-                  </linearGradient>
-                </defs>
-              </BarChart>
-            </ResponsiveContainer>
-          )}
-        </GlassCard>
-      </motion.div>
-
-      {/* ── HEATMAP ── */}
-      <motion.div initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.35 }}>
-        <GlassCard className="p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Target className="h-5 w-5 text-cyan-400"/>
-            <h2 className="font-semibold">Carte d'activité — 84 jours</h2>
-          </div>
-          <div className="grid gap-1" style={{ gridTemplateColumns:"repeat(12,1fr)" }}>
-            {heatmap.map(item => (
-              <div key={item.date}
-                className="aspect-square rounded-sm cursor-default transition-all hover:scale-110"
-                style={{ background:getHeatmapColor(item.count), border:"1px solid rgba(255,255,255,0.04)" }}
-                title={`${item.date} : ${item.count} session${item.count!==1?"s":""}`}/>
-            ))}
-          </div>
-          <div className="flex items-center gap-2 mt-3">
-            <span className="text-xs text-muted-foreground">Moins</span>
-            {[0,1,2,3,4].map(n => (
-              <div key={n} className="h-3 w-3 rounded-sm" style={{ background:getHeatmapColor(n) }}/>
-            ))}
-            <span className="text-xs text-muted-foreground">Plus</span>
+              )
+            })}
           </div>
         </GlassCard>
       </motion.div>
