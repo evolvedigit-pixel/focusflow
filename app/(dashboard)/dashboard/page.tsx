@@ -15,6 +15,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
 import { createClient } from "@/lib/supabase/client"
+import { WeeklyChallenges } from "@/components/weekly-challenges"
 
 const QUOTES = [
   "Réviser les cours du jour, même 20 minutes par matière, installe les infos profondément dans ton cerveau.",
@@ -295,37 +296,30 @@ function formatTimeAgo(dateString: string) {
   } catch { return "" }
 }
 
-// ── BUG FIX 1 : Score productivité avec sessions du jour séparées ─────────────
 function calcProductivityScore(
   todaySessions: FocusSession[],
   todos: Todo[],
   habitsDone: number,
   habitsTotal: number
 ): number {
-  // Focus : objectif 2h = 120 min (sessions déjà filtrées sur aujourd'hui)
   const focusMin   = todaySessions.reduce((a,s) => a + (s.duration||0), 0)
   const focusScore = Math.min(focusMin / 120, 1) * 40
-
-  // Tâches : ratio complétées
-  const completed = todos.filter(t => t.completed).length
-  const taskScore = todos.length > 0 ? (completed / todos.length) * 40 : 0
-
-  // Habitudes
+  const completed  = todos.filter(t => t.completed).length
+  const taskScore  = todos.length > 0 ? (completed / todos.length) * 40 : 0
   const habitScore = habitsTotal > 0 ? (habitsDone / habitsTotal) * 20 : 0
-
   return Math.round(focusScore + taskScore + habitScore)
 }
 
 export default function DashboardPage() {
-  const [profile, setProfile]           = useState<Profile|null>(null)
-  const [sessions, setSessions]         = useState<FocusSession[]>([])
+  const [profile, setProfile]             = useState<Profile|null>(null)
+  const [sessions, setSessions]           = useState<FocusSession[]>([])
   const [todaySessions, setTodaySessions] = useState<FocusSession[]>([])
-  const [weeklyData, setWeeklyData]     = useState<{day:string;hours:number;sessions:number}[]>([])
-  const [todos, setTodos]               = useState<Todo[]>([])
-  const [habitsDone, setHabitsDone]     = useState(0)
-  const [habitsTotal, setHabitsTotal]   = useState(0)
-  const [loading, setLoading]           = useState(true)
-  const [error, setError]               = useState<string|null>(null)
+  const [weeklyData, setWeeklyData]       = useState<{day:string;hours:number;sessions:number}[]>([])
+  const [todos, setTodos]                 = useState<Todo[]>([])
+  const [habitsDone, setHabitsDone]       = useState(0)
+  const [habitsTotal, setHabitsTotal]     = useState(0)
+  const [loading, setLoading]             = useState(true)
+  const [error, setError]                 = useState<string|null>(null)
 
   useEffect(() => {
     const timeout = setTimeout(() => setLoading(false), 5000)
@@ -344,21 +338,17 @@ export default function DashboardPage() {
         getTodos(),
         supabase.from("habits").select("id").eq("user_id", user.id),
         supabase.from("habit_entries").select("habit_id")
-          .eq("user_id", user.id)
-          .eq("completed", true)
+          .eq("user_id", user.id).eq("completed", true)
           .gte("date", todayStart.toISOString().split("T")[0]),
-        // BUG FIX 1 : récupérer les sessions d'aujourd'hui séparément
         supabase.from("focus_sessions")
           .select("id, duration, xp_earned, session_type, completed_at")
-          .eq("user_id", user.id)
-          .gte("completed_at", todayStr),
+          .eq("user_id", user.id).gte("completed_at", todayStr),
       ])
 
       clearTimeout(timeout)
       setProfile(p)
       setSessions(s??[])
       setTodaySessions(todaySessionsRes.data ?? [])
-      // BUG FIX 2 : arrondir les heures à 1 décimale dans weeklyData
       setWeeklyData((w??[]).map(d => ({ ...d, hours: Math.round(d.hours * 10) / 10 })))
       setTodos(t??[])
       setHabitsTotal(habitsRes.data?.length ?? 0)
@@ -385,8 +375,6 @@ export default function DashboardPage() {
   const xpToNext    = p?.xp_to_next_level ?? 100
   const xpProgress  = xpToNext > 0 ? Math.min((xp/xpToNext)*100, 100) : 0
   const displayName = p?.name ?? p?.full_name ?? "là"
-
-  // Score calculé depuis les sessions du jour uniquement
   const productivityScore = calcProductivityScore(todaySessions, todos, habitsDone, habitsTotal)
 
   const statCards = [
@@ -553,9 +541,12 @@ export default function DashboardPage() {
           </GlassCard>
         </motion.div>
       </div>
+
+      {/* ── DÉFIS HEBDOMADAIRES ── */}
+      <motion.div initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.4 }}>
+        <WeeklyChallenges />
+      </motion.div>
+
     </div>
   )
 }
-import { WeeklyChallenges } from "@/components/weekly-challenges"
-// ... dans le return, après la grille sessions :
-<WeeklyChallenges />
