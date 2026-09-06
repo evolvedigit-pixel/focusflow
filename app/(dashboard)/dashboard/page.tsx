@@ -556,6 +556,3 @@ export default function DashboardPage() {
     </div>
   )
 }
-import { WeeklyChallenges } from "@/components/weekly-challenges"
-// ... dans le return, après la grille sessions :
-<WeeklyChallenges />
