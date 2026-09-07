@@ -2,11 +2,11 @@
 export type AmbientSound = 'rain' | 'forest' | 'ocean' | 'fire' | 'night' | null
  
 const SOUND_URLS: Record<string, string> = {
-  rain:   "/sounds/rain.mp3",
-  forest: "/sounds/forest.mp3",
-  ocean:  "/sounds/ocean.mp3",
-  fire:   "/sounds/fire.mp3",
-  night:  "/sounds/night.mp3",
+  forest: "https://res.cloudinary.com/ratzczbc/video/upload/v1788817208/AMBForst_Foret_et_ruisseau_1_ID_2713__LaSonotheque.fr.wav",
+  rain:   "https://res.cloudinary.com/ratzczbc/video/upload/v1788817036/RAINConc_Pluie_d_ete_sur_terrasse_ID_1019__LaSonotheque.fr.wav",
+  fire:   "https://res.cloudinary.com/ratzczbc/video/upload/v1788816963/FIREBurn_Feu_de_cheminee_4_ID_2856__LaSonotheque.fr.wav",
+  ocean:  "https://res.cloudinary.com/ratzczbc/video/upload/v1788816937/WATRWave_Petites_vagues_face_ocean_ID_1046__LaSonotheque.fr.wav",
+  night:  "https://res.cloudinary.com/ratzczbc/video/upload/v1788816745/AMBBird_Oiseaux_de_nuit_ID_0315__LaSonotheque.fr.wav",
 }
  
 let currentAudio: HTMLAudioElement | null = null
