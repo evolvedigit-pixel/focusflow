@@ -242,33 +242,34 @@ export default function ProfilePage() {
             <div className="flex items-start gap-5">
 
               {/* ── AVATAR + UPLOAD ── */}
-              <div className="relative flex-shrink-0">
-                <div className="flex h-24 w-24 items-center justify-center rounded-full overflow-hidden shadow-[0_0_30px_rgba(147,51,234,0.4)]"
+              <div className="relative flex-shrink-0" style={{ width:96, height:96 }}>
+                <div className="w-24 h-24 rounded-full overflow-hidden shadow-[0_0_30px_rgba(147,51,234,0.4)]"
                   style={{ background:"linear-gradient(135deg,#7c3aed,#6366f1)" }}>
                   {avatarUrl ? (
                     <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover"/>
                   ) : (
-                    <span className="text-3xl font-bold text-white">{initials}</span>
-                  )}
-                  {uploadingPhoto && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-full">
-                      <Loader2 className="h-6 w-6 animate-spin text-white"/>
-                    </div>
+                    <div className="w-full h-full flex items-center justify-center text-3xl font-bold text-white">{initials}</div>
                   )}
                 </div>
-
-                {/* Bouton photo */}
-                <motion.button whileHover={{ scale:1.1 }} whileTap={{ scale:0.9 }}
+                {uploadingPhoto && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-full">
+                    <Loader2 className="h-6 w-6 animate-spin text-white"/>
+                  </div>
+                )}
+                {/* Bouton photo — toujours visible */}
+                <button
                   onClick={() => fileRef.current?.click()}
-                  className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full text-white shadow-lg"
-                  style={{ background:"linear-gradient(135deg,#7c3aed,#6366f1)", border:"2px solid #09090b" }}
+                  className="absolute flex items-center justify-center rounded-full text-white shadow-xl"
+                  style={{ background:"linear-gradient(135deg,#7c3aed,#6366f1)", border:"2.5px solid #09090b",
+                    width:32, height:32, bottom:-4, right:-4, zIndex:30 }}
                   title="Changer la photo">
-                  <Camera size={13}/>
-                </motion.button>
+                  <Camera size={14}/>
+                </button>
                 <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload}/>
-
                 {/* Badge niveau */}
-                <div className="absolute -bottom-2 -right-2 flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-cyan-500 text-base shadow-lg border-2 border-background font-bold text-white text-sm">
+                <div className="absolute flex items-center justify-center rounded-full font-bold text-white text-sm"
+                  style={{ background:"linear-gradient(135deg,#7c3aed,#6366f1)", border:"2px solid #09090b",
+                    width:28, height:28, top:-4, left:-4, zIndex:30, fontSize:11 }}>
                   {p?.level??1}
                 </div>
               </div>
