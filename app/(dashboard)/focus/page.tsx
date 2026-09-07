@@ -22,10 +22,11 @@ const BG_THEMES = [
 ]
 
 const AMBIENT_SOUNDS = [
-  { id:"rain"   as AmbientSound, label:"Pluie",  emoji:"🌧️" },
-  { id:"cafe"   as AmbientSound, label:"Café",   emoji:"☕" },
-  { id:"forest" as AmbientSound, label:"Forêt",  emoji:"🌲" },
-  { id:"ocean"  as AmbientSound, label:"Océan",  emoji:"🌊" },
+  { id:"rain"   as AmbientSound, label:"Pluie",    emoji:"🌧️" },
+  { id:"forest" as AmbientSound, label:"Forêt",    emoji:"🌲" },
+  { id:"ocean"  as AmbientSound, label:"Océan",    emoji:"🌊" },
+  { id:"fire"   as AmbientSound, label:"Feu",      emoji:"🔥" },
+  { id:"night"  as AmbientSound, label:"Nuit",     emoji:"🌙" },
 ]
 
 function playCompletionSound() {
