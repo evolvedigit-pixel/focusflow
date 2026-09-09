@@ -19,26 +19,6 @@ function getHeatmapColor(count: number) {
   return "#8b5cf6"
 }
 
-function getPlantStage(h: number) {
-  if (h < 3)   return { name:"Graine silencieuse",    emoji:"🪴", level:1, next:3  }
-  if (h < 10)  return { name:"Jeune pousse",          emoji:"🌱", level:2, next:10 }
-  if (h < 25)  return { name:"Plantule disciplinée",  emoji:"🌿", level:3, next:25 }
-  if (h < 50)  return { name:"Arbre du calme",        emoji:"🌲", level:4, next:50 }
-  if (h < 100) return { name:"Gardien de la Canopée", emoji:"🌳", level:5, next:100 }
-  if (h < 200) return { name:"Maître des Saisons",    emoji:"🎋", level:6, next:200 }
-  return              { name:"Souverain de l'Équilibre", emoji:"🐉", level:7, next:300 }
-}
-
-function getJungleRank(h: number) {
-  if (h < 5)   return { rank:"Novice des Racines",      color:"#6b7280" }
-  if (h < 15)  return { rank:"Protecteur des Feuilles", color:"#22c55e" }
-  if (h < 40)  return { rank:"Gardien de la Canopée",   color:"#06b6d4" }
-  if (h < 80)  return { rank:"Sage Tropical",           color:"#8b5cf6" }
-  if (h < 150) return { rank:"Maître des Brumes",       color:"#a855f7" }
-  if (h < 300) return { rank:"Esprit de la Jungle",     color:"#f59e0b" }
-  return              { rank:"Souverain de l'Équilibre", color:"#ef4444" }
-}
-
 function getBadges(p: Profile | null, totalSessions: number) {
   const badges = []
   if (totalSessions >= 1)  badges.push({ emoji:"🎯", name:"Premier pas",    desc:"1ère session focus" })
@@ -60,12 +40,9 @@ export default function ProfilePage() {
   const [totalSessions, setTotalSessions] = useState(0)
   const [loading, setLoading]         = useState(true)
 
-  // Champs éditables
   const [displayName, setDisplayName] = useState("")
   const [bio, setBio]                 = useState("")
   const [avatarUrl, setAvatarUrl]     = useState<string|null>(null)
-
-  // États édition
   const [editingName, setEditingName] = useState(false)
   const [editingBio, setEditingBio]   = useState(false)
   const [tempName, setTempName]       = useState("")
@@ -74,7 +51,6 @@ export default function ProfilePage() {
   const [savingBio, setSavingBio]     = useState(false)
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const [saveMsg, setSaveMsg]         = useState("")
-
   const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -82,31 +58,19 @@ export default function ProfilePage() {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
-
       const p = await getProfile()
       setProfile(p)
-
-      // Charger les extras depuis la DB
-      const { data: extras } = await supabase
-        .from("profiles")
-        .select("bio, display_name, avatar_url, name, full_name")
-        .eq("id", user.id).single()
-
+      const { data: extras } = await supabase.from("profiles")
+        .select("bio, display_name, avatar_url, name, full_name").eq("id", user.id).single()
       const name = extras?.display_name || extras?.name || extras?.full_name ||
         user.email?.split("@")[0] || "Utilisateur"
-      setDisplayName(name)
-      setBio(extras?.bio ?? "")
-      setAvatarUrl(extras?.avatar_url ?? null)
-
+      setDisplayName(name); setBio(extras?.bio ?? ""); setAvatarUrl(extras?.avatar_url ?? null)
       if (p) {
-        const sixMonthsAgo = new Date()
-        sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5)
-        const { data: sessions } = await supabase
-          .from("focus_sessions").select("duration, xp_earned, completed_at")
-          .eq("user_id", user.id).gte("completed_at", sixMonthsAgo.toISOString())
-
+        const sixMonthsAgo = new Date(); sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5)
+        const { data: sessions } = await supabase.from("focus_sessions")
+          .select("duration, xp_earned, completed_at").eq("user_id", user.id)
+          .gte("completed_at", sixMonthsAgo.toISOString())
         setTotalSessions(sessions?.length ?? 0)
-
         const months = ["Jan","Fév","Mar","Avr","Mai","Jun","Jul","Aoû","Sep","Oct","Nov","Déc"]
         const monthMap: Record<string,{xp:number;hours:number}> = {}
         for (let i=5; i>=0; i--) {
@@ -118,15 +82,12 @@ export default function ProfilePage() {
           if (monthMap[m]) { monthMap[m].xp += s.xp_earned; monthMap[m].hours += s.duration/60 }
         }
         setMonthlyData(Object.entries(monthMap).map(([month,v]) => ({month,...v})))
-
-        const { data: heatSessions } = await supabase
-          .from("focus_sessions").select("completed_at").eq("user_id", user.id)
+        const { data: heatSessions } = await supabase.from("focus_sessions")
+          .select("completed_at").eq("user_id", user.id)
           .gte("completed_at", new Date(Date.now()-84*86400000).toISOString())
-
         const countMap: Record<string,number> = {}
         for (const s of heatSessions??[]) {
-          const d = s.completed_at.split("T")[0]
-          countMap[d] = (countMap[d]??0)+1
+          const d = s.completed_at.split("T")[0]; countMap[d] = (countMap[d]??0)+1
         }
         const heatmapArr = []
         for (let i=83; i>=0; i--) {
@@ -141,39 +102,26 @@ export default function ProfilePage() {
     load()
   }, [])
 
-  // ── Sauvegarder le nom ──────────────────────────────────────────────────
   async function saveName() {
     if (!tempName.trim()) return
     setSavingName(true)
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (user) {
-      await supabase.from("profiles").update({
-        display_name: tempName.trim(),
-        name:         tempName.trim(),
-      }).eq("id", user.id)
+      await supabase.from("profiles").update({ display_name:tempName.trim(), name:tempName.trim() }).eq("id", user.id)
       setDisplayName(tempName.trim())
     }
-    setSavingName(false)
-    setEditingName(false)
-    flash("Nom enregistré ✓")
+    setSavingName(false); setEditingName(false); flash("Nom enregistré ✓")
   }
 
-  // ── Sauvegarder la bio ──────────────────────────────────────────────────
   async function saveBio() {
     setSavingBio(true)
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
-      await supabase.from("profiles").update({ bio: tempBio.trim() }).eq("id", user.id)
-      setBio(tempBio.trim())
-    }
-    setSavingBio(false)
-    setEditingBio(false)
-    flash("Bio enregistrée ✓")
+    if (user) { await supabase.from("profiles").update({ bio:tempBio.trim() }).eq("id", user.id); setBio(tempBio.trim()) }
+    setSavingBio(false); setEditingBio(false); flash("Bio enregistrée ✓")
   }
 
-  // ── Upload photo ─────────────────────────────────────────────────────────
   async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
@@ -185,18 +133,13 @@ export default function ProfilePage() {
     const reader = new FileReader()
     reader.onload = async (ev) => {
       const base64 = ev.target?.result as string
-      await supabase.from("profiles").update({ avatar_url: base64 }).eq("id", user.id)
-      setAvatarUrl(base64)
-      setUploadingPhoto(false)
-      flash("Photo mise à jour ✓")
+      await supabase.from("profiles").update({ avatar_url:base64 }).eq("id", user.id)
+      setAvatarUrl(base64); setUploadingPhoto(false); flash("Photo mise à jour ✓")
     }
     reader.readAsDataURL(file)
   }
 
-  function flash(msg: string) {
-    setSaveMsg(msg)
-    setTimeout(() => setSaveMsg(""), 3000)
-  }
+  function flash(msg: string) { setSaveMsg(msg); setTimeout(() => setSaveMsg(""), 3000) }
 
   if (loading) return (
     <div className="flex min-h-[60vh] items-center justify-center">
@@ -207,32 +150,28 @@ export default function ProfilePage() {
   const p          = profile
   const xpProgress = p ? (p.xp/p.xp_to_next_level)*100 : 0
   const totalHours = p?.total_focus_hours ?? 0
-  const plant      = getPlantStage(totalHours)
-  const jungleRank = getJungleRank(totalHours)
   const badges     = getBadges(p, totalSessions)
   const initials   = displayName.slice(0,2).toUpperCase()
-  const plantProgress = Math.min((totalHours/plant.next)*100, 100)
 
   const stats = [
-    { label:"Sessions totales", value:totalSessions,          icon:Target, color:"from-purple-500 to-purple-600" },
-    { label:"Heures de focus",  value:Math.round(totalHours), icon:Clock,  color:"from-cyan-500 to-cyan-600"    },
-    { label:"Série en cours",   value:p?.streak??0, suffix:" j", icon:Flame, color:"from-orange-500 to-red-500"  },
-    { label:"Productivité",     value:p?.productivity_score??0, suffix:"%", icon:Trophy, color:"from-yellow-500 to-amber-500" },
+    { label:"Sessions totales", value:totalSessions,              icon:Target, color:"from-purple-500 to-purple-600" },
+    { label:"Heures de focus",  value:Math.round(totalHours),    icon:Clock,  color:"from-cyan-500 to-cyan-600"    },
+    { label:"Série en cours",   value:p?.streak??0, suffix:" j", icon:Flame,  color:"from-orange-500 to-red-500"   },
+    { label:"XP total",         value:p?.xp??0,                  icon:Zap,    color:"from-yellow-500 to-amber-500" },
   ]
 
   return (
     <div className="space-y-5 relative">
 
-      {/* Toast */}
       {saveMsg && (
-        <motion.div initial={{ opacity:0, y:-10 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0 }}
+        <motion.div initial={{ opacity:0, y:-10 }} animate={{ opacity:1, y:0 }}
           className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-xl text-sm font-medium text-white"
           style={{ background:"rgba(34,197,94,0.2)", border:"1px solid rgba(34,197,94,0.4)" }}>
           {saveMsg}
         </motion.div>
       )}
 
-      {/* ── CARTE PROFIL ── */}
+      {/* CARTE PROFIL */}
       <motion.div initial={{ opacity:0, y:-10 }} animate={{ opacity:1, y:0 }}>
         <GlassCard className="p-6 sm:p-8 relative overflow-hidden" glow="purple">
           <div className="absolute -right-16 -top-16 h-52 w-52 rounded-full bg-violet-500/10 blur-3xl pointer-events-none"/>
@@ -241,7 +180,7 @@ export default function ProfilePage() {
           <div className="relative flex flex-col gap-6 sm:flex-row sm:items-start">
             <div className="flex items-start gap-5">
 
-              {/* ── AVATAR + UPLOAD ── */}
+              {/* AVATAR */}
               <div className="relative flex-shrink-0" style={{ width:96, height:96 }}>
                 <div className="w-24 h-24 rounded-full overflow-hidden shadow-[0_0_30px_rgba(147,51,234,0.4)]"
                   style={{ background:"linear-gradient(135deg,#7c3aed,#6366f1)" }}>
@@ -256,18 +195,14 @@ export default function ProfilePage() {
                     <Loader2 className="h-6 w-6 animate-spin text-white"/>
                   </div>
                 )}
-                {/* Bouton photo — toujours visible */}
-                <button
-                  onClick={() => fileRef.current?.click()}
+                <button onClick={() => fileRef.current?.click()}
                   className="absolute flex items-center justify-center rounded-full text-white shadow-xl"
                   style={{ background:"linear-gradient(135deg,#7c3aed,#6366f1)", border:"2.5px solid #09090b",
-                    width:32, height:32, bottom:-4, right:-4, zIndex:30 }}
-                  title="Changer la photo">
+                    width:32, height:32, bottom:-4, right:-4, zIndex:30 }}>
                   <Camera size={14}/>
                 </button>
                 <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload}/>
-                {/* Badge niveau */}
-                <div className="absolute flex items-center justify-center rounded-full font-bold text-white text-sm"
+                <div className="absolute flex items-center justify-center rounded-full font-bold text-white"
                   style={{ background:"linear-gradient(135deg,#7c3aed,#6366f1)", border:"2px solid #09090b",
                     width:28, height:28, top:-4, left:-4, zIndex:30, fontSize:11 }}>
                   {p?.level??1}
@@ -275,22 +210,21 @@ export default function ProfilePage() {
               </div>
 
               <div className="flex-1">
-                {/* ── NOM ÉDITABLE ── */}
+                {/* NOM ÉDITABLE */}
                 <div className="flex items-center gap-2 flex-wrap mb-1">
                   {editingName ? (
                     <div className="flex items-center gap-2">
                       <input value={tempName} onChange={e => setTempName(e.target.value)}
                         className="text-xl font-bold rounded-lg px-3 py-1 outline-none"
                         style={{ background:"rgba(255,255,255,0.06)", border:"1px solid rgba(139,92,246,0.5)", color:"#fff", maxWidth:200 }}
-                        autoFocus onKeyDown={e => e.key==="Enter" && saveName()}
-                        placeholder="Ton prénom ou pseudo"/>
+                        autoFocus onKeyDown={e => e.key==="Enter" && saveName()}/>
                       <button onClick={saveName} disabled={savingName}
-                        className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                        className="w-8 h-8 rounded-lg flex items-center justify-center"
                         style={{ background:"rgba(34,197,94,0.2)", color:"#4ade80" }}>
                         {savingName ? <Loader2 size={14} className="animate-spin"/> : <Check size={14}/>}
                       </button>
                       <button onClick={() => setEditingName(false)}
-                        className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                        className="w-8 h-8 rounded-lg flex items-center justify-center"
                         style={{ background:"rgba(255,255,255,0.05)", color:"rgba(255,255,255,0.4)" }}>
                         <X size={14}/>
                       </button>
@@ -302,10 +236,6 @@ export default function ProfilePage() {
                       <Edit3 size={14} className="opacity-0 group-hover:opacity-100 transition-opacity text-white/30"/>
                     </button>
                   )}
-                  <span className="text-xs px-2 py-1 rounded-full font-semibold"
-                    style={{ background:`${jungleRank.color}20`, color:jungleRank.color, border:`1px solid ${jungleRank.color}40` }}>
-                    {jungleRank.rank}
-                  </span>
                 </div>
 
                 <p className="text-muted-foreground text-sm mb-3">
@@ -315,21 +245,21 @@ export default function ProfilePage() {
                     : "—"}
                 </p>
 
-                {/* ── BIO ÉDITABLE ── */}
+                {/* BIO ÉDITABLE */}
                 {editingBio ? (
                   <div className="flex items-center gap-2">
                     <input value={tempBio} onChange={e => setTempBio(e.target.value)}
                       className="flex-1 text-sm rounded-lg px-3 py-1.5 outline-none"
                       style={{ background:"rgba(255,255,255,0.05)", border:"1px solid rgba(139,92,246,0.4)", color:"#fff" }}
-                      placeholder="Décris-toi en une phrase..."
-                      autoFocus onKeyDown={e => e.key==="Enter" && saveBio()}/>
+                      placeholder="Décris-toi en une phrase..." autoFocus
+                      onKeyDown={e => e.key==="Enter" && saveBio()}/>
                     <button onClick={saveBio} disabled={savingBio}
-                      className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                      className="w-8 h-8 rounded-lg flex items-center justify-center"
                       style={{ background:"rgba(34,197,94,0.2)", color:"#4ade80" }}>
                       {savingBio ? <Loader2 size={14} className="animate-spin"/> : <Check size={14}/>}
                     </button>
                     <button onClick={() => setEditingBio(false)}
-                      className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                      className="w-8 h-8 rounded-lg flex items-center justify-center"
                       style={{ background:"rgba(255,255,255,0.05)", color:"rgba(255,255,255,0.4)" }}>
                       <X size={14}/>
                     </button>
@@ -346,26 +276,8 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            {/* XP + plante */}
+            {/* XP */}
             <div className="sm:ml-auto flex flex-col items-end gap-3 min-w-52">
-              <div className="flex items-center gap-2 rounded-xl px-3 py-2 w-full"
-                style={{ background:"rgba(74,222,128,0.06)", border:"1px solid rgba(74,222,128,0.12)" }}>
-                <motion.span animate={{ y:[0,-3,0] }} transition={{ duration:2, repeat:Infinity }}>
-                  {plant.emoji}
-                </motion.span>
-                <div className="flex-1">
-                  <div className="text-xs font-semibold" style={{ color:"#d1fae5" }}>{plant.name}</div>
-                  <div className="h-1 rounded-full mt-1 overflow-hidden" style={{ background:"rgba(74,222,128,0.1)" }}>
-                    <motion.div className="h-full rounded-full"
-                      style={{ background:"linear-gradient(90deg,#16a34a,#4ade80)" }}
-                      initial={{ width:0 }} animate={{ width:`${plantProgress}%` }} transition={{ duration:1 }}/>
-                  </div>
-                  <div className="text-[9px] mt-0.5" style={{ color:"rgba(74,222,128,0.4)" }}>
-                    {Math.round(totalHours)}h / {plant.next}h
-                  </div>
-                </div>
-              </div>
-
               <div className="w-full">
                 <div className="flex items-center justify-between mb-1.5">
                   <span className="text-xs text-muted-foreground">Niveau {p?.level??1} → {(p?.level??1)+1}</span>
@@ -388,7 +300,7 @@ export default function ProfilePage() {
                 <stat.icon className="h-5 w-5 text-white"/>
               </div>
               <p className="text-2xl font-bold">
-                <AnimatedCounter value={stat.value}/>{(stat as any).suffix??''}
+                <AnimatedCounter value={stat.value}/>{(stat as any).suffix??""}
               </p>
               <p className="text-xs text-muted-foreground mt-1">{stat.label}</p>
             </GlassCard>

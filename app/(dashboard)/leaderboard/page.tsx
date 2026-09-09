@@ -40,8 +40,6 @@ function UserAvatar({ user, size=36 }: { user: LeaderUser; size?: number }) {
   )
 }
 
-function getJungleRank(h: number) {
-  if (h < 5)   return { rank:"Novice des Racines",      emoji:"🌱", color:"#6b7280" }
   if (h < 15)  return { rank:"Protecteur des Feuilles", emoji:"🍃", color:"#22c55e" }
   if (h < 40)  return { rank:"Gardien de la Canopée",   emoji:"🌳", color:"#06b6d4" }
   if (h < 80)  return { rank:"Sage Tropical",           emoji:"🦋", color:"#8b5cf6" }
@@ -85,7 +83,6 @@ export default function LeaderboardPage() {
 
   const myRank   = sorted.findIndex(u => u.id===currentUserId) + 1
   const me       = users.find(u => u.id===currentUserId)
-  const myJungle = getJungleRank(me?.total_focus_hours ?? 0)
 
   const totalXP    = users.reduce((a,u) => a+u.xp, 0)
   const totalHours = Math.round(users.reduce((a,u) => a+u.total_focus_hours, 0))
@@ -135,10 +132,7 @@ export default function LeaderboardPage() {
                   <UserAvatar user={me} size={40}/>
                   <div>
                     <div className="font-bold text-white">{userName(me)}</div>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <span style={{ fontSize:14 }}>{myJungle.emoji}</span>
-                      <span className="text-xs font-medium" style={{ color:myJungle.color }}>{myJungle.rank}</span>
-                    </div>
+  
                   </div>
                 </div>
               </div>
@@ -235,7 +229,7 @@ export default function LeaderboardPage() {
                 </div>
                 <div className="font-bold text-white text-sm truncate">{userName(user)}</div>
                 {isMe && <div className="text-[10px] text-violet-400 font-semibold">Vous</div>}
-                <div className="text-[10px] mt-0.5 mb-2" style={{ color:jungle.color }}>{jungle.emoji} {jungle.rank}</div>
+
                 <div className="font-black text-white" style={{ fontFamily:"'Sora',sans-serif", fontSize:18 }}>
                   {tab==="xp" ? `${user.xp.toLocaleString()} XP`
                    : tab==="heures" ? `${Math.round(user.total_focus_hours)}h`
@@ -264,7 +258,7 @@ export default function LeaderboardPage() {
                 const rank      = index + 1
                 const isMe      = user.id===currentUserId
                 const rankStyle = getRankStyle(rank)
-                const jungle    = getJungleRank(user.total_focus_hours)
+
                 return (
                   <motion.div key={user.id}
                     initial={{ opacity:0, x:-20 }} animate={{ opacity:1, x:0 }} transition={{ delay:index*0.03 }}
@@ -294,11 +288,7 @@ export default function LeaderboardPage() {
                         <p className="font-medium truncate text-sm text-white/90">{userName(user)}</p>
                         {isMe && <span className="text-[10px] text-purple-400 font-semibold flex-shrink-0">Vous</span>}
                       </div>
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        <span style={{ fontSize:11 }}>{jungle.emoji}</span>
-                        <span className="text-[10px]" style={{ color:jungle.color }}>{jungle.rank}</span>
-                        <span className="text-[10px] text-white/20">· Niv. {user.level}</span>
-                      </div>
+                      <div className="text-[10px] text-white/20">Niv. {user.level}</div>
                     </div>
 
                     {/* Stats */}
