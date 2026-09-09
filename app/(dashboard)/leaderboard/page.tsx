@@ -40,14 +40,6 @@ function UserAvatar({ user, size=36 }: { user: LeaderUser; size?: number }) {
   )
 }
 
-  if (h < 15)  return { rank:"Protecteur des Feuilles", emoji:"🍃", color:"#22c55e" }
-  if (h < 40)  return { rank:"Gardien de la Canopée",   emoji:"🌳", color:"#06b6d4" }
-  if (h < 80)  return { rank:"Sage Tropical",           emoji:"🦋", color:"#8b5cf6" }
-  if (h < 150) return { rank:"Maître des Brumes",       emoji:"🌫️",  color:"#a855f7" }
-  if (h < 300) return { rank:"Esprit de la Jungle",     emoji:"✨", color:"#f59e0b" }
-  return              { rank:"Souverain de l'Équilibre", emoji:"👑", color:"#ef4444" }
-}
-
 function getRankStyle(rank: number) {
   if (rank===1) return { gradient:"from-yellow-400 to-amber-500",  icon:Crown,  shadow:"rgba(251,191,36,0.4)" }
   if (rank===2) return { gradient:"from-gray-300 to-gray-400",     icon:Medal,  shadow:"rgba(209,213,219,0.3)" }
