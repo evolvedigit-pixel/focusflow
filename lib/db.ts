@@ -99,7 +99,7 @@ export function getTaskXP(priority: string): number {
  
 // ─── Utilitaire dates ────────────────────────────────────────────────────────
 function toDateKey(date: Date): string {
-  return date.toISOString().split('T')[0] // YYYY-MM-DD
+  return date.toISOString().split('T')[0]
 }
  
 function todayKey(): string {
@@ -113,17 +113,13 @@ function yesterdayKey(): string {
 }
  
 // ─── Calcul du nouveau streak ─────────────────────────────────────────────────
-// lastSessionDate : date (YYYY-MM-DD) de la dernière session AVANT celle qu'on crée
-// currentStreak   : valeur actuelle du streak dans le profil
 function calcNewStreak(lastSessionDate: string | null, currentStreak: number): number {
-  if (!lastSessionDate) return 1           // première session ever
- 
+  if (!lastSessionDate) return 1
   const today     = todayKey()
   const yesterday = yesterdayKey()
- 
-  if (lastSessionDate === today)     return currentStreak  // déjà focusé aujourd'hui
-  if (lastSessionDate === yesterday) return currentStreak + 1 // hier → on continue
-  return 1                                                 // trop vieux → on repart à 1
+  if (lastSessionDate === today)     return currentStreak
+  if (lastSessionDate === yesterday) return currentStreak + 1
+  return 1
 }
  
 // ─── Profile ─────────────────────────────────────────────────────────────────
@@ -170,19 +166,15 @@ export async function addXP(amount: number): Promise<void> {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return
- 
   const { data: profile } = await supabase
     .from('profiles').select('xp, level').eq('id', user.id).single()
   if (!profile) return
- 
   let newXP    = (profile.xp ?? 0) + amount
   let newLevel = profile.level ?? 1
- 
   while (newXP >= xpForLevel(newLevel)) {
     newXP -= xpForLevel(newLevel)
     newLevel++
   }
- 
   await supabase.from('profiles').update({
     xp: newXP,
     level: newLevel,
@@ -218,7 +210,6 @@ export async function createTodo(
  
 export async function updateTodo(id: string, updates: Partial<Todo>) {
   const supabase = createClient()
- 
   if (updates.completed === true) {
     const { data: todo } = await supabase
       .from('todos').select('priority, completed').eq('id', id).single()
@@ -227,7 +218,6 @@ export async function updateTodo(id: string, updates: Partial<Todo>) {
       await addXP(xp)
     }
   }
- 
   const { error } = await supabase
     .from('todos')
     .update({ ...updates, updated_at: new Date().toISOString() })
@@ -306,38 +296,33 @@ export async function createFocusSession(session: {
   session_type: string
   duration: number
   xp_earned?: number
-}): Promise<FocusSession | null> {
+}): Promise<{ session: FocusSession; leveledUp: boolean; newLevel: number } | null> {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
  
-  // Charger le profil complet
   const { data: currentProfile } = await supabase
     .from('profiles')
     .select('xp, level, sessions_completed, total_focus_hours, streak, last_session_date')
     .eq('id', user.id).single()
  
-  const currentStreak    = currentProfile?.streak ?? 0
-  const lastSessionDate  = currentProfile?.last_session_date ?? null
+  const currentStreak   = currentProfile?.streak ?? 0
+  const lastSessionDate = currentProfile?.last_session_date ?? null
+  const previousLevel   = currentProfile?.level ?? 1
  
-  // ── CALCUL STREAK ──────────────────────────────────────────────────────────
-  const newStreak = calcNewStreak(lastSessionDate, currentStreak)
- 
-  // XP = 1 par minute + bonus streak
+  const newStreak   = calcNewStreak(lastSessionDate, currentStreak)
   const streakBonus = newStreak * XP_RULES.STREAK_BONUS_PER_DAY
   const xp_earned   = (session.duration * XP_RULES.FOCUS_PER_MINUTE) + streakBonus
  
-  // Insérer la session
   const { data, error } = await supabase
     .from('focus_sessions')
     .insert({ ...session, xp_earned, user_id: user.id })
     .select().single()
   if (error) throw error
  
-  // Mise à jour profil avec streak + last_session_date
   const hoursToAdd = session.duration / 60
   let newXP    = (currentProfile?.xp ?? 0) + xp_earned
-  let newLevel = currentProfile?.level ?? 1
+  let newLevel = previousLevel
   while (newXP >= xpForLevel(newLevel)) {
     newXP -= xpForLevel(newLevel)
     newLevel++
@@ -349,11 +334,12 @@ export async function createFocusSession(session: {
     sessions_completed: (currentProfile?.sessions_completed ?? 0) + 1,
     total_focus_hours:  (currentProfile?.total_focus_hours ?? 0) + hoursToAdd,
     streak:             newStreak,
-    last_session_date:  todayKey(),   // ← enregistre la date de la session
+    last_session_date:  todayKey(),
     updated_at:         new Date().toISOString(),
   }).eq('id', user.id)
  
-  return data
+  const leveledUp = newLevel > previousLevel
+  return { session: data, leveledUp, newLevel }
 }
  
 export async function getWeeklyActivity(): Promise<
@@ -362,26 +348,21 @@ export async function getWeeklyActivity(): Promise<
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return []
- 
   const weekStart = getWeekStart()
   const weekEnd   = new Date(weekStart)
   weekEnd.setDate(weekEnd.getDate() + 7)
- 
   const { data } = await supabase
     .from('focus_sessions').select('duration, completed_at').eq('user_id', user.id)
     .gte('completed_at', weekStart)
     .lt('completed_at', weekEnd.toISOString().split('T')[0])
- 
   const days   = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim']
   const result = days.map(day => ({ day, hours: 0, sessions: 0 }))
- 
   for (const session of data ?? []) {
     const date     = new Date(session.completed_at)
     const dayIndex = (date.getDay() + 6) % 7
     result[dayIndex].hours    += session.duration / 60
     result[dayIndex].sessions += 1
   }
- 
   return result
 }
  
@@ -394,4 +375,3 @@ export async function addHabitXP(): Promise<void> {
 export async function addJournalXP(): Promise<void> {
   await addXP(XP_RULES.JOURNAL)
 }
- 

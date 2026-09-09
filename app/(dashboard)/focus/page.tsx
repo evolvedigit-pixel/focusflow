@@ -6,6 +6,7 @@ import { GlassCard } from "@/components/ui/glass-card"
 import { Button } from "@/components/ui/button"
 import { sessionTypes, createFocusSession } from "@/lib/db"
 import { toggleAmbientSound, stopAllSounds, setAmbientVolume, type AmbientSound } from "@/lib/ambient-sounds"
+import { LevelUpPopup } from "@/components/level-up-popup"
 import {
   Play, Pause, RotateCcw, Maximize2, Minimize2,
   Volume2, VolumeX, Zap, Clock, Target, Edit3, Palette, Bell, BellOff,
@@ -70,6 +71,7 @@ export default function FocusPage() {
   const [showModeChoice, setShowModeChoice]   = useState(false)
   const [justFinished, setJustFinished]       = useState(false)
   const [activeSound, setActiveSound]         = useState<AmbientSound>(null)
+  const [levelUpData, setLevelUpData]         = useState<{ newLevel: number } | null>(null)
   const [volume, setVolume]                   = useState(0.4)
   const modeChoiceTimeout = useRef<NodeJS.Timeout>()
 
@@ -145,7 +147,9 @@ export default function FocusPage() {
       setSessionsCompleted(p => p + 1)
       const xp = activeDuration * 1
       setTotalXpEarned(p => p + xp)
-      createFocusSession({ session_type:selected.id, duration:activeDuration, xp_earned:xp }).catch(console.error)
+      createFocusSession({ session_type:selected.id, duration:activeDuration, xp_earned:xp })
+        .then(result => { if (result?.leveledUp) setLevelUpData({ newLevel: result.newLevel }) })
+        .catch(console.error)
       setTimeout(() => { handleReset(); setJustFinished(false) }, 3000)
     }
     return () => clearInterval(id)
@@ -572,6 +576,9 @@ export default function FocusPage() {
           </motion.div>
         </div>
       </div>
+      {levelUpData && (
+        <LevelUpPopup newLevel={levelUpData.newLevel} onClose={() => setLevelUpData(null)}/>
+      )}
     </div>
   )
 }
