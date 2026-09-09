@@ -438,6 +438,10 @@ export default function DashboardPage() {
       if (!user) { clearTimeout(timeout); setLoading(false); return }
       const todayStart = new Date(); todayStart.setHours(0,0,0,0)
       const todayStr   = todayStart.toISOString()
+      // Charger display_name depuis profiles
+      const { data: extraProfile } = await supabase.from("profiles")
+        .select("display_name").eq("id", user.id).single()
+
       const [p,s,w,t,habitsRes,logsRes,todaySessionsRes] = await Promise.all([
         getProfile(), getRecentSessions(5), getWeeklyActivity(), getTodos(),
         supabase.from("habits").select("id").eq("user_id",user.id),
@@ -445,6 +449,9 @@ export default function DashboardPage() {
         supabase.from("focus_sessions").select("id,duration,xp_earned,session_type,completed_at").eq("user_id",user.id).gte("completed_at",todayStr),
       ])
       clearTimeout(timeout)
+      if (p && extraProfile?.display_name) {
+        (p as any).display_name = extraProfile.display_name
+      }
       setProfile(p); setSessions(s??[]); setTodaySessions(todaySessionsRes.data??[])
       setWeeklyData((w??[]).map(d=>({...d,hours:Math.round(d.hours*10)/10})))
       setTodos(t??[]); setHabitsTotal(habitsRes.data?.length??0)
@@ -461,7 +468,7 @@ export default function DashboardPage() {
   const xp          = p?.xp??0
   const xpToNext    = p?.xp_to_next_level??100
   const xpProgress  = xpToNext>0?Math.min((xp/xpToNext)*100,100):0
-  const displayName = p?.name??p?.full_name??"là"
+  const displayName = (p as any)?.display_name ?? p?.name ?? p?.full_name ?? "là"
   const productivityScore = calcProductivityScore(todaySessions,todos,habitsDone,habitsTotal)
 
   const statCards = [

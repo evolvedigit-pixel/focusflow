@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   Plus, CheckCircle2, Circle, Trash2, Edit3, Clock,
@@ -38,15 +38,15 @@ function getPriorityColor(id: string) {
   return priorities.find(p => p.id===id)?.color ?? "#f59e0b"
 }
 
-// ── Ligne tâche draggable ─────────────────────────────────────────────────────
+// ── Ligne tâche draggable avec auto-disparition ───────────────────────────────
 function SortableTodoRow({
-  todo, onToggle, onEdit, onDelete, isDragging,
+  todo, onToggle, onEdit, onDelete, disappearing,
 }: {
   todo: Todo
   onToggle: () => void
   onEdit: () => void
   onDelete: () => void
-  isDragging?: boolean
+  disappearing?: boolean
 }) {
   const {
     attributes, listeners, setNodeRef,
@@ -64,37 +64,51 @@ function SortableTodoRow({
   const priColor = getPriorityColor(todo.priority)
 
   return (
-    <div ref={setNodeRef} style={style}
+    <motion.div
+      ref={setNodeRef}
+      style={style}
+      layout
+      initial={{ opacity:1, height:"auto", scaleY:1 }}
+      animate={disappearing ? {
+        opacity: [1, 1, 0],
+        height: [undefined, undefined, 0],
+        scaleY: [1, 1, 0],
+        x: [0, 12, -120],
+        backgroundColor: ["rgba(255,255,255,0)", "rgba(34,197,94,0.08)", "rgba(34,197,94,0)"],
+      } : { opacity:1, height:"auto", scaleY:1, x:0 }}
+      transition={disappearing ? {
+        duration: 0.9,
+        times: [0, 0.4, 1],
+        ease: "easeInOut",
+      } : { duration:0.2 }}
       className={cn(
-        "flex items-center gap-3 px-5 py-4 group transition-colors border-b border-white/[0.04] last:border-b-0",
-        isThisDragging
-          ? "bg-white/[0.06] rounded-xl shadow-2xl"
-          : "hover:bg-white/[0.02]",
-        todo.completed && "opacity-50"
+        "flex items-center gap-3 px-5 py-4 group border-b border-white/[0.04] last:border-b-0 overflow-hidden",
+        isThisDragging ? "bg-white/[0.06] rounded-xl shadow-2xl" : "hover:bg-white/[0.02]",
       )}>
 
-      {/* ── Poignée drag ── */}
+      {/* Poignée drag */}
       <button {...attributes} {...listeners}
-        className="flex-shrink-0 cursor-grab active:cursor-grabbing text-white/20 hover:text-white/50 transition-colors touch-none"
-        title="Glisser pour réordonner">
+        className="flex-shrink-0 cursor-grab active:cursor-grabbing text-white/20 hover:text-white/50 transition-colors touch-none">
         <GripVertical className="h-4 w-4"/>
       </button>
 
       {/* Checkbox */}
       <button onClick={onToggle} className="flex-shrink-0 transition-transform hover:scale-110">
         {todo.completed
-          ? <CheckCircle2 style={{ width:20, height:20 }} className="text-green-400"/>
+          ? <motion.div initial={{ scale:0.5 }} animate={{ scale:1 }} transition={{ type:"spring", stiffness:500 }}>
+              <CheckCircle2 style={{ width:20, height:20 }} className="text-green-400"/>
+            </motion.div>
           : <Circle style={{ width:20, height:20 }} className="text-white/25 hover:text-white/50"/>
         }
       </button>
 
-      {/* Barre couleur catégorie */}
+      {/* Barre couleur */}
       <div className="w-1 h-10 rounded-full flex-shrink-0" style={{ backgroundColor:catColor }}/>
 
       {/* Contenu */}
       <div className="flex-1 min-w-0">
-        <p className={cn("text-sm font-medium text-white/90 truncate",
-          todo.completed && "line-through text-white/40")}>
+        <p className={cn("text-sm font-medium truncate transition-all duration-300",
+          todo.completed ? "line-through text-white/30" : "text-white/90")}>
           {todo.title}
         </p>
         <div className="flex items-center gap-2 mt-1 flex-wrap">
@@ -116,35 +130,48 @@ function SortableTodoRow({
         </div>
       </div>
 
-      {/* Actions */}
-      <div className="flex items-center gap-2 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-        <span className="text-[10px] text-yellow-400/80 flex items-center gap-0.5 font-medium">
+      {/* XP + badge "archivé" quand complété */}
+      <div className="flex items-center gap-2 flex-shrink-0">
+        {todo.completed && disappearing && (
+          <motion.span
+            initial={{ opacity:0, scale:0.5, x:10 }}
+            animate={{ opacity:1, scale:1, x:0 }}
+            className="text-xs font-bold text-green-400">
+            ✓ Archivé
+          </motion.span>
+        )}
+        <span className={cn("text-[10px] text-yellow-400/80 flex items-center gap-0.5 font-medium transition-opacity",
+          todo.completed ? "opacity-100" : "opacity-0 group-hover:opacity-100")}>
           <Zap className="h-3 w-3"/>+{todo.xp_reward}
         </span>
-        <button onClick={onEdit}
-          className="w-7 h-7 flex items-center justify-center rounded-lg text-white/30 hover:text-white/80 hover:bg-white/[0.08] transition-all">
-          <Edit3 className="h-3.5 w-3.5"/>
-        </button>
-        <button onClick={onDelete}
-          className="w-7 h-7 flex items-center justify-center rounded-lg text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-all">
-          <Trash2 className="h-3.5 w-3.5"/>
-        </button>
+        <div className={cn("flex items-center gap-1 transition-opacity",
+          todo.completed ? "opacity-0" : "opacity-0 group-hover:opacity-100")}>
+          <button onClick={onEdit}
+            className="w-7 h-7 flex items-center justify-center rounded-lg text-white/30 hover:text-white/80 hover:bg-white/[0.08] transition-all">
+            <Edit3 className="h-3.5 w-3.5"/>
+          </button>
+          <button onClick={onDelete}
+            className="w-7 h-7 flex items-center justify-center rounded-lg text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-all">
+            <Trash2 className="h-3.5 w-3.5"/>
+          </button>
+        </div>
       </div>
-    </div>
+    </motion.div>
   )
 }
 
 // ── Page principale ───────────────────────────────────────────────────────────
 export default function TasksPage() {
-  const [todos, setTodos]           = useState<Todo[]>([])
-  const [loading, setLoading]       = useState(true)
-  const [showAdd, setShowAdd]       = useState(false)
-  const [editingTodo, setEditingTodo] = useState<Todo|null>(null)
-  const [search, setSearch]         = useState("")
+  const [todos, setTodos]                   = useState<Todo[]>([])
+  const [loading, setLoading]               = useState(true)
+  const [showAdd, setShowAdd]               = useState(false)
+  const [editingTodo, setEditingTodo]       = useState<Todo|null>(null)
+  const [search, setSearch]                 = useState("")
   const [filterStatus, setFilterStatus]     = useState<"tous"|"actifs"|"termines">("tous")
   const [filterPriority, setFilterPriority] = useState<string>("tous")
   const [filterCategory, setFilterCategory] = useState<string>("tous")
-  const [newTodo, setNewTodo]       = useState({
+  const [disappearingIds, setDisappearingIds] = useState<Set<string>>(new Set())
+  const [newTodo, setNewTodo] = useState({
     title:"", category:"work", priority:"medium" as const,
     due_date: new Date().toISOString().split("T")[0],
   })
@@ -158,7 +185,6 @@ export default function TasksPage() {
     getTodos().then(data => { setTodos(data); setLoading(false) })
   }, [])
 
-  // ── Drag & Drop ───────────────────────────────────────────────────────────
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
     if (!over || active.id === over.id) return
@@ -185,10 +211,23 @@ export default function TasksPage() {
     setEditingTodo(null)
   }, [editingTodo])
 
+  // ── Toggle avec auto-disparition ─────────────────────────────────────────
   const handleToggle = useCallback(async (todo: Todo) => {
-    const updated = { ...todo, completed:!todo.completed }
-    await updateTodo(todo.id, { completed:updated.completed })
+    const nowCompleted = !todo.completed
+    const updated = { ...todo, completed: nowCompleted }
+    await updateTodo(todo.id, { completed: nowCompleted })
     setTodos(prev => prev.map(t => t.id===todo.id ? updated : t))
+
+    if (nowCompleted) {
+      // Attendre 2s, animer 0.9s, puis retirer de la liste
+      setTimeout(() => {
+        setDisappearingIds(prev => new Set(prev).add(todo.id))
+        setTimeout(() => {
+          setTodos(prev => prev.filter(t => t.id !== todo.id))
+          setDisappearingIds(prev => { const s = new Set(prev); s.delete(todo.id); return s })
+        }, 900)
+      }, 1800)
+    }
   }, [])
 
   const handleDelete = useCallback(async (id: string) => {
@@ -216,14 +255,12 @@ export default function TasksPage() {
     return                        { msg:"💪 Lance-toi — la première tâche est la plus difficile.", color:"rgba(255,255,255,0.3)" }
   }
   const progressMsg = getProgressMsg()
-
-  // Filtres actifs = pas de drag (sinon conflit ordre)
   const filtersActive = search || filterStatus!=="tous" || filterPriority!=="tous" || filterCategory!=="tous"
 
   return (
     <div className="flex flex-col gap-5">
 
-      {/* ── EN-TÊTE ── */}
+      {/* EN-TÊTE */}
       <motion.div initial={{ opacity:0, y:-12 }} animate={{ opacity:1, y:0 }}
         className="flex items-center justify-between flex-wrap gap-3">
         <div>
@@ -239,7 +276,7 @@ export default function TasksPage() {
         </motion.button>
       </motion.div>
 
-      {/* ── ÉTAT VIDE ── */}
+      {/* ÉTAT VIDE */}
       {!loading && todos.length===0 && (
         <motion.div initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.1 }}
           className="rounded-2xl p-8 text-center"
@@ -274,7 +311,7 @@ export default function TasksPage() {
         </motion.div>
       )}
 
-      {/* ── BARRE PROGRESSION ── */}
+      {/* BARRE PROGRESSION */}
       {todos.length > 0 && (
         <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.05 }}
           className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-md px-5 py-4">
@@ -290,7 +327,7 @@ export default function TasksPage() {
         </motion.div>
       )}
 
-      {/* ── FILTRES ── */}
+      {/* FILTRES */}
       {todos.length > 0 && (
         <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.1 }}
           className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-md px-5 py-4 space-y-3">
@@ -349,12 +386,11 @@ export default function TasksPage() {
         </motion.div>
       )}
 
-      {/* ── LISTE DES TÂCHES avec DnD ── */}
+      {/* LISTE */}
       {todos.length > 0 && (
         <motion.div initial={{ opacity:0, y:16 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.15 }}
           className="rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-md overflow-hidden">
 
-          {/* Hint drag */}
           {!filtersActive && todos.length > 1 && (
             <div className="px-5 py-2 border-b border-white/[0.04] flex items-center gap-1.5">
               <GripVertical className="h-3 w-3 text-white/20"/>
@@ -372,75 +408,74 @@ export default function TasksPage() {
               <p className="text-xs">Aucune tâche trouvée</p>
             </div>
           ) : filtersActive ? (
-            // Sans DnD si filtres actifs
             <div className="divide-y divide-white/[0.04]">
-              {filtered.map(todo => {
-                const catColor = getCategoryColor(todo.category)
-                const priColor = getPriorityColor(todo.priority)
-                return (
-                  <div key={todo.id}
-                    className={cn("flex items-center gap-3 px-5 py-4 group transition-colors hover:bg-white/[0.02]",
-                      todo.completed && "opacity-50")}>
-                    <div className="w-4 flex-shrink-0"/>
-                    <button onClick={() => handleToggle(todo)} className="flex-shrink-0 transition-transform hover:scale-110">
-                      {todo.completed
-                        ? <CheckCircle2 style={{ width:20, height:20 }} className="text-green-400"/>
-                        : <Circle style={{ width:20, height:20 }} className="text-white/25 hover:text-white/50"/>}
-                    </button>
-                    <div className="w-1 h-10 rounded-full flex-shrink-0" style={{ backgroundColor:catColor }}/>
-                    <div className="flex-1 min-w-0">
-                      <p className={cn("text-sm font-medium text-white/90 truncate", todo.completed && "line-through text-white/40")}>{todo.title}</p>
-                      <div className="flex items-center gap-2 mt-1 flex-wrap">
-                        <span className="inline-flex items-center gap-1 text-[10px] rounded-full px-2 py-0.5 font-medium"
-                          style={{ backgroundColor:catColor+"22", color:catColor }}>
-                          <Tag className="h-2.5 w-2.5"/>{taskCategories.find(c => c.id===todo.category)?.name}
-                        </span>
-                        <span className="inline-flex items-center gap-1 text-[10px] font-medium" style={{ color:priColor }}>
-                          <Flag className="h-2.5 w-2.5"/>{priorities.find(p => p.id===todo.priority)?.name}
-                        </span>
-                        {todo.due_date && (
-                          <span className="inline-flex items-center gap-1 text-[10px] text-white/30">
-                            <Clock className="h-2.5 w-2.5"/>
-                            {new Date(todo.due_date).toLocaleDateString("fr-FR",{month:"short",day:"numeric"})}
+              <AnimatePresence>
+                {filtered.map(todo => {
+                  const catColor = getCategoryColor(todo.category)
+                  const priColor = getPriorityColor(todo.priority)
+                  const isDisappearing = disappearingIds.has(todo.id)
+                  return (
+                    <motion.div key={todo.id}
+                      layout
+                      initial={{ opacity:1 }}
+                      animate={isDisappearing ? { opacity:0, x:-100, height:0 } : { opacity:1, x:0 }}
+                      transition={{ duration:0.9 }}
+                      className={cn("flex items-center gap-3 px-5 py-4 group transition-colors hover:bg-white/[0.02]")}>
+                      <div className="w-4 flex-shrink-0"/>
+                      <button onClick={() => handleToggle(todo)} className="flex-shrink-0 transition-transform hover:scale-110">
+                        {todo.completed
+                          ? <CheckCircle2 style={{ width:20, height:20 }} className="text-green-400"/>
+                          : <Circle style={{ width:20, height:20 }} className="text-white/25 hover:text-white/50"/>}
+                      </button>
+                      <div className="w-1 h-10 rounded-full flex-shrink-0" style={{ backgroundColor:catColor }}/>
+                      <div className="flex-1 min-w-0">
+                        <p className={cn("text-sm font-medium text-white/90 truncate transition-all duration-300",
+                          todo.completed && "line-through text-white/30")}>{todo.title}</p>
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          <span className="inline-flex items-center gap-1 text-[10px] rounded-full px-2 py-0.5 font-medium"
+                            style={{ backgroundColor:catColor+"22", color:catColor }}>
+                            <Tag className="h-2.5 w-2.5"/>{taskCategories.find(c => c.id===todo.category)?.name}
                           </span>
-                        )}
+                          <span className="inline-flex items-center gap-1 text-[10px] font-medium" style={{ color:priColor }}>
+                            <Flag className="h-2.5 w-2.5"/>{priorities.find(p => p.id===todo.priority)?.name}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-2 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <span className="text-[10px] text-yellow-400/80 flex items-center gap-0.5 font-medium">
-                        <Zap className="h-3 w-3"/>+{todo.xp_reward}
-                      </span>
-                      <button onClick={() => setEditingTodo(todo)}
-                        className="w-7 h-7 flex items-center justify-center rounded-lg text-white/30 hover:text-white/80 hover:bg-white/[0.08] transition-all">
-                        <Edit3 className="h-3.5 w-3.5"/>
-                      </button>
-                      <button onClick={() => handleDelete(todo.id)}
-                        className="w-7 h-7 flex items-center justify-center rounded-lg text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-all">
-                        <Trash2 className="h-3.5 w-3.5"/>
-                      </button>
-                    </div>
-                  </div>
-                )
-              })}
+                      <div className="flex items-center gap-2 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => setEditingTodo(todo)}
+                          className="w-7 h-7 flex items-center justify-center rounded-lg text-white/30 hover:text-white/80 hover:bg-white/[0.08] transition-all">
+                          <Edit3 className="h-3.5 w-3.5"/>
+                        </button>
+                        <button onClick={() => handleDelete(todo.id)}
+                          className="w-7 h-7 flex items-center justify-center rounded-lg text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-all">
+                          <Trash2 className="h-3.5 w-3.5"/>
+                        </button>
+                      </div>
+                    </motion.div>
+                  )
+                })}
+              </AnimatePresence>
             </div>
           ) : (
-            // Avec DnD
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
               <SortableContext items={todos.map(t => t.id)} strategy={verticalListSortingStrategy}>
-                {todos.map(todo => (
-                  <SortableTodoRow key={todo.id} todo={todo}
-                    onToggle={() => handleToggle(todo)}
-                    onEdit={() => setEditingTodo(todo)}
-                    onDelete={() => handleDelete(todo.id)}
-                  />
-                ))}
+                <AnimatePresence>
+                  {todos.map(todo => (
+                    <SortableTodoRow key={todo.id} todo={todo}
+                      onToggle={() => handleToggle(todo)}
+                      onEdit={() => setEditingTodo(todo)}
+                      onDelete={() => handleDelete(todo.id)}
+                      disappearing={disappearingIds.has(todo.id)}
+                    />
+                  ))}
+                </AnimatePresence>
               </SortableContext>
             </DndContext>
           )}
         </motion.div>
       )}
 
-      {/* ── MODALS ── */}
+      {/* MODALS */}
       <AnimatePresence>
         {showAdd && (
           <Modal title="Nouvelle tâche" onClose={() => setShowAdd(false)}>
