@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import {
   LayoutDashboard, Timer, Trophy, User, Sparkles,
-  Menu, X, CalendarDays, BookOpen, LogOut, CheckSquare, Activity, Settings, BarChart2,
+  Menu, X, CalendarDays, BookOpen, LogOut, CheckSquare, Activity, Settings, BarChart2, Star,
 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
@@ -21,6 +21,7 @@ const navItems = [
   { href:"/journal",     icon:BookOpen,        label:"Journal"         },
   { href:"/leaderboard", icon:Trophy,          label:"Classement"      },
   { href:"/profile",     icon:User,            label:"Profil"          },
+  { href:"/goals",       icon:Star,            label:"Objectifs"       },
   { href:"/analytics",   icon:BarChart2,       label:"Analyse"         },
   { href:"/settings",    icon:Settings,        label:"Paramètres"      },
 ]
