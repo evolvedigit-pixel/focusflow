@@ -202,7 +202,6 @@ export default function LeaderboardPage() {
             const realRank  = i===0 ? 2 : i===1 ? 1 : 3
             const rankStyle = getRankStyle(realRank)!
             const isMe      = user.id===currentUserId
-            const jungle    = getJungleRank(user.total_focus_hours)
             return (
               <motion.div key={user.id}
                 initial={{ opacity:0, y:realRank===1?-10:10 }} animate={{ opacity:1, y:0 }}
