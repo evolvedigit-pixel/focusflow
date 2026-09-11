@@ -52,13 +52,29 @@ export function Sidebar() {
 
   useEffect(() => {
     const supabase = createClient()
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
+
+    async function loadProfile() {
+      const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
       const { data } = await supabase.from("profiles")
         .select("*, display_name, avatar_url").eq("id", user.id).single()
       setProfile(data)
       setAvatarUrl(data?.avatar_url ?? null)
-    })
+    }
+
+    loadProfile()
+
+    // Rafraîchir quand une session focus est terminée
+    const handler = () => loadProfile()
+    window.addEventListener("focusSessionCompleted", handler)
+
+    // Rafraîchir toutes les 30s si on est sur la page focus
+    const interval = setInterval(loadProfile, 30000)
+
+    return () => {
+      window.removeEventListener("focusSessionCompleted", handler)
+      clearInterval(interval)
+    }
   }, [])
 
   async function handleSignOut() {
