@@ -14,12 +14,12 @@ import {
 import { cn } from "@/lib/utils"
 
 const BG_THEMES = [
-  { id:"pink",   label:"Rose",   style:{ background:"radial-gradient(ellipse at center, #f9a8d4 0%, #fce7f3 50%, #fbcfe8 100%)" } },
-  { id:"black",  label:"Noir",   style:{ background:"radial-gradient(ellipse at center, #1a1a2e 0%, #0a0a0f 60%, #000000 100%)" } },
-  { id:"gray",   label:"Gris",   style:{ background:"radial-gradient(ellipse at center, #374151 0%, #1f2937 60%, #111827 100%)" } },
-  { id:"green",  label:"Vert",   style:{ background:"radial-gradient(ellipse at center, #064e3b 0%, #022c22 60%, #011a15 100%)" } },
-  { id:"blue",   label:"Bleu",   style:{ background:"radial-gradient(ellipse at center, #1e3a5f 0%, #0c1f3d 60%, #050e20 100%)" } },
-  { id:"violet", label:"Violet", style:{ background:"radial-gradient(ellipse at center, #3b0764 0%, #1e0438 60%, #0d0019 100%)" } },
+  { id:"pink",    label:"Rose",           style:{ background:"radial-gradient(ellipse at center, #f9a8d4 0%, #fce7f3 50%, #fbcfe8 100%)" } },
+  { id:"black",   label:"Noir",           style:{ background:"linear-gradient(135deg, #000000 0%, #4a4a4a 100%)" } },
+  { id:"nature",  label:"Nature",         style:{ background:"linear-gradient(135deg, #7ed957 0%, #d4f57a 100%)" } },
+  { id:"ocean",   label:"Océan",          style:{ background:"linear-gradient(135deg, #4dd9e0 0%, #0033cc 100%)" } },
+  { id:"sunset",  label:"Coucher soleil", style:{ background:"linear-gradient(135deg, #5b7fff 0%, #c45bff 50%, #ff6bb5 100%)" } },
+  { id:"night",   label:"Nuit",           style:{ background:"linear-gradient(135deg, #000000 0%, #2200cc 100%)" } },
 ]
 
 const AMBIENT_SOUNDS = [
@@ -84,8 +84,25 @@ export default function FocusPage() {
   const fmt = (s: number) =>
     `${String(Math.floor(s / 60)).padStart(2,"0")}:${String(s % 60).padStart(2,"0")}`
 
-  // Nettoyage sons quand on quitte
   useEffect(() => () => stopAllSounds(), [])
+
+  // Charger les sessions du jour au démarrage
+  useEffect(() => {
+    async function loadTodaySessions() {
+      const supabase = (await import("@/lib/supabase/client")).createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const todayStart = new Date(); todayStart.setHours(0,0,0,0)
+      const { data } = await supabase
+        .from("focus_sessions").select("duration, xp_earned")
+        .eq("user_id", user.id).gte("completed_at", todayStart.toISOString())
+      if (data && data.length > 0) {
+        setSessionsCompleted(data.length)
+        setTotalXpEarned(data.reduce((a:number,s:any) => a+(s.xp_earned||0), 0))
+      }
+    }
+    loadTodaySessions()
+  }, [])
 
   const handleReset = useCallback(() => {
     setIsRunning(false)
@@ -119,13 +136,11 @@ export default function FocusPage() {
     else document.exitFullscreen()
   }
 
-  // ── Toggle son d'ambiance ──────────────────────────────────────────────────
   function handleSoundToggle(sound: AmbientSound) {
     const result = toggleAmbientSound(sound, volume)
     setActiveSound(result)
   }
 
-  // ── Volume change ──────────────────────────────────────────────────────────
   function handleVolumeChange(v: number) {
     setVolume(v)
     setAmbientVolume(v)
@@ -148,7 +163,11 @@ export default function FocusPage() {
       const xp = activeDuration * 1
       setTotalXpEarned(p => p + xp)
       createFocusSession({ session_type:selected.id, duration:activeDuration, xp_earned:xp })
-        .then(result => { if (result?.leveledUp) setLevelUpData({ newLevel: result.newLevel }) })
+        .then(result => {
+          if (result?.leveledUp) setLevelUpData({ newLevel: result.newLevel })
+          // Notifier la sidebar de rafraîchir le profil
+          window.dispatchEvent(new Event("focusSessionCompleted"))
+        })
         .catch(console.error)
       setTimeout(() => { handleReset(); setJustFinished(false) }, 3000)
     }
@@ -230,7 +249,6 @@ export default function FocusPage() {
             </button>
           </div>
 
-          {/* Sons en plein écran */}
           <div className="flex items-center gap-2">
             {AMBIENT_SOUNDS.map(s => (
               <motion.button key={s.id} whileHover={{ scale:1.1 }} whileTap={{ scale:0.9 }}
@@ -273,7 +291,6 @@ export default function FocusPage() {
         )}
       </AnimatePresence>
 
-      {/* Header */}
       <motion.div initial={{ opacity:0, y:-10 }} animate={{ opacity:1, y:0 }}
         className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -281,14 +298,11 @@ export default function FocusPage() {
           <p className="text-muted-foreground">Restez concentré et gagnez des XP</p>
         </div>
         <div className="flex items-center gap-2">
-          {/* Notification */}
           <Button variant="outline" size="icon" onClick={() => setNotifEnabled(!notifEnabled)}
-            className={cn("border-white/[0.1] bg-white/[0.03] hover:bg-white/[0.06]", notifEnabled && "border-violet-500/30 text-violet-400")}
-            title={notifEnabled ? "Son fin activé" : "Son fin désactivé"}>
+            className={cn("border-white/[0.1] bg-white/[0.03] hover:bg-white/[0.06]", notifEnabled && "border-violet-500/30 text-violet-400")}>
             {notifEnabled ? <Bell className="h-4 w-4"/> : <BellOff className="h-4 w-4"/>}
           </Button>
 
-          {/* Palette couleur fond */}
           <div className="relative">
             <Button variant="outline" size="icon" onClick={() => setShowColorPicker(!showColorPicker)}
               className="border-white/[0.1] bg-white/[0.03] hover:bg-white/[0.06]">
@@ -299,8 +313,8 @@ export default function FocusPage() {
                 <motion.div initial={{ opacity:0, y:8, scale:0.95 }} animate={{ opacity:1, y:0, scale:1 }}
                   exit={{ opacity:0, y:8, scale:0.95 }}
                   className="absolute right-0 top-12 z-50 rounded-2xl p-3 flex flex-col gap-2"
-                  style={{ background:"rgba(15,15,25,0.95)", border:"1px solid rgba(255,255,255,0.1)", backdropFilter:"blur(20px)", minWidth:150 }}>
-                  <div className="text-xs font-semibold text-white/50 mb-1">Couleur du fond</div>
+                  style={{ background:"rgba(15,15,25,0.95)", border:"1px solid rgba(255,255,255,0.1)", backdropFilter:"blur(20px)", minWidth:170 }}>
+                  <div className="text-xs font-semibold text-white/50 mb-1">Thème du fond</div>
                   {BG_THEMES.map(theme => (
                     <button key={theme.id} onClick={() => { setBgTheme(theme); setShowColorPicker(false) }}
                       className="flex items-center gap-2 px-2 py-1.5 rounded-lg transition-all hover:bg-white/[0.05]">
@@ -315,7 +329,6 @@ export default function FocusPage() {
             </AnimatePresence>
           </div>
 
-          {/* Fullscreen avec pulse */}
           <div className="relative">
             {isRunning && (
               <motion.div className="absolute inset-0 rounded-lg"
@@ -330,7 +343,6 @@ export default function FocusPage() {
         </div>
       </motion.div>
 
-      {/* Types session */}
       <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.1 }}
         className="mb-4 flex flex-wrap gap-3">
         {sessionTypes.map(s => (
@@ -345,14 +357,18 @@ export default function FocusPage() {
         ))}
       </motion.div>
 
-      {/* Durée créatif */}
       <AnimatePresence>
         {isCreative && (
           <motion.div initial={{ opacity:0, y:-8 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0, y:-8 }} className="mb-6">
             <div className="flex items-center gap-3 p-4 rounded-2xl bg-white/[0.03] border border-white/[0.07] w-fit">
               <span className="text-sm text-white/50">Durée :</span>
               <input type="number" min={1} max={480} value={customDuration}
-                onChange={e => setCustomDuration(Number(e.target.value))} disabled={isRunning}
+                onChange={e => {
+                  const val = Number(e.target.value)
+                  setCustomDuration(val)
+                  if (!isRunning) setTimeLeft(val * 60)
+                }}
+                disabled={isRunning}
                 className="w-20 bg-white/[0.06] border border-white/[0.1] rounded-lg px-3 py-1.5 text-sm text-white text-center focus:outline-none disabled:opacity-40"/>
               <span className="text-sm text-white/50">min</span>
               <button onClick={() => { setTimeLeft(customDuration*60); setIsRunning(false) }} disabled={isRunning}
@@ -365,7 +381,6 @@ export default function FocusPage() {
       </AnimatePresence>
 
       <div className="flex flex-col items-center justify-center gap-8 lg:flex-row lg:items-start lg:gap-12">
-        {/* Timer */}
         <motion.div initial={{ opacity:0, scale:0.9 }} animate={{ opacity:1, scale:1 }} transition={{ delay:0.2 }}>
           <GlassCard className="p-8 sm:p-12 relative" glow={isRunning ? "purple" : "none"}>
             <AnimatePresence>
@@ -408,7 +423,6 @@ export default function FocusPage() {
               </div>
             </div>
 
-            {/* Contrôles */}
             <div className="mt-8 flex items-center justify-center gap-4">
               <Button variant="outline" size="icon" onClick={handleReset}
                 className="h-12 w-12 rounded-full border-white/[0.1] bg-white/[0.03] hover:bg-white/[0.06]">
@@ -472,7 +486,6 @@ export default function FocusPage() {
           </GlassCard>
         </motion.div>
 
-        {/* Sidebar */}
         <div className="w-full max-w-sm space-y-4">
           <motion.div initial={{ opacity:0, x:20 }} animate={{ opacity:1, x:0 }} transition={{ delay:0.3 }}>
             <GlassCard className="p-5">
@@ -497,7 +510,6 @@ export default function FocusPage() {
             </GlassCard>
           </motion.div>
 
-          {/* ── SONS D'AMBIANCE FONCTIONNELS ── */}
           <motion.div initial={{ opacity:0, x:20 }} animate={{ opacity:1, x:0 }} transition={{ delay:0.4 }}>
             <GlassCard className="p-5">
               <div className="flex items-center justify-between mb-4">
@@ -509,7 +521,6 @@ export default function FocusPage() {
                   </div>
                 )}
               </div>
-
               <div className="grid grid-cols-2 gap-2 mb-4">
                 {AMBIENT_SOUNDS.map(sound => (
                   <motion.button key={sound.id}
@@ -531,16 +542,13 @@ export default function FocusPage() {
                       <motion.div className="ml-auto flex gap-0.5 items-end"
                         animate={{ opacity:[1,0.5,1] }} transition={{ duration:0.8, repeat:Infinity }}>
                         {[3,5,4,6,3].map((h,i) => (
-                          <div key={i} className="w-0.5 rounded-full bg-violet-400"
-                            style={{ height:h, animationDelay:`${i*0.1}s` }}/>
+                          <div key={i} className="w-0.5 rounded-full bg-violet-400" style={{ height:h }}/>
                         ))}
                       </motion.div>
                     )}
                   </motion.button>
                 ))}
               </div>
-
-              {/* Slider volume */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5 text-xs text-white/40">
