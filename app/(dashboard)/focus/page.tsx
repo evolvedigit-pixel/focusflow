@@ -190,13 +190,7 @@ export default function FocusPage() {
   if (isFullscreen) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center transition-all duration-700" style={bgTheme.style}>
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          {Array.from({ length:5 }).map((_,i) => (
-            <motion.div key={i} className="absolute rounded-full"
-              style={{ width:180+i*90, height:180+i*90, left:"50%", top:"50%", x:"-50%", y:"-50%", border:"1px solid rgba(255,255,255,0.04)" }}
-              animate={{ rotate:360 }} transition={{ duration:20+i*5, repeat:Infinity, ease:"linear" }}/>
-          ))}
-        </div>
+
 
         <AnimatePresence>
           {justFinished && (

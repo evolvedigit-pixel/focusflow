@@ -178,6 +178,7 @@ export async function addXP(amount: number): Promise<void> {
   await supabase.from('profiles').update({
     xp: newXP,
     level: newLevel,
+    xp_to_next_level: xpForLevel(newLevel),
     updated_at: new Date().toISOString(),
   }).eq('id', user.id)
 }
@@ -331,6 +332,7 @@ export async function createFocusSession(session: {
   await supabase.from('profiles').update({
     xp:                 newXP,
     level:              newLevel,
+    xp_to_next_level:   xpForLevel(newLevel),
     sessions_completed: (currentProfile?.sessions_completed ?? 0) + 1,
     total_focus_hours:  (currentProfile?.total_focus_hours ?? 0) + hoursToAdd,
     streak:             newStreak,
