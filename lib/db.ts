@@ -60,8 +60,26 @@ export const XP_RULES = {
   STREAK_BONUS_PER_DAY: 5,
 }
  
+// XP TOTAL nécessaire pour atteindre chaque niveau
+// Niveau 1 → 2 : 500 XP
+// Niveau 2 → 3 : 1000 XP
+// Niveau 3 → 4 : 2000 XP
+// etc.
+const LEVEL_THRESHOLDS: Record<number, number> = {
+  1:  500,
+  2:  1000,
+  3:  2000,
+  4:  3500,
+  5:  5500,
+  6:  8000,
+  7:  11000,
+  8:  15000,
+  9:  20000,
+  10: 30000,
+}
+ 
 export function xpForLevel(level: number): number {
-  return level * 100
+  return LEVEL_THRESHOLDS[level] ?? level * 5000
 }
  
 // ─── Config statique ─────────────────────────────────────────────────────────
