@@ -6,6 +6,7 @@ import { GlassCard } from "@/components/ui/glass-card"
 import { Trophy, Flame, Clock, Crown, Medal, Award, Loader2, Zap } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
+import { getLeague, getTotalXP } from "@/lib/db"
 
 type LeaderUser = {
   id: string
@@ -124,6 +125,14 @@ export default function LeaderboardPage() {
                   <UserAvatar user={me} size={40}/>
                   <div>
                     <div className="font-bold text-white">{userName(me)}</div>
+                    {(() => { const lg = getLeague(getTotalXP(me.level, me.xp)); return (
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <span className="text-xs font-bold px-2 py-0.5 rounded-full"
+                          style={{ background:`${lg.color}20`, color:lg.color, border:`1px solid ${lg.color}30` }}>
+                          {lg.emoji} {lg.name}
+                        </span>
+                      </div>
+                    )})()}
   
                   </div>
                 </div>
@@ -219,6 +228,11 @@ export default function LeaderboardPage() {
                   <UserAvatar user={user} size={48}/>
                 </div>
                 <div className="font-bold text-white text-sm truncate">{userName(user)}</div>
+                {(() => { const lg = getLeague(getTotalXP(user.level, user.xp)); return (
+                  <div className="text-[10px] mt-0.5 mb-1 font-bold" style={{ color:lg.color }}>
+                    {lg.emoji} {lg.name}
+                  </div>
+                )})()}
                 {isMe && <div className="text-[10px] text-violet-400 font-semibold">Vous</div>}
 
                 <div className="font-black text-white" style={{ fontFamily:"'Sora',sans-serif", fontSize:18 }}>
@@ -279,7 +293,15 @@ export default function LeaderboardPage() {
                         <p className="font-medium truncate text-sm text-white/90">{userName(user)}</p>
                         {isMe && <span className="text-[10px] text-purple-400 font-semibold flex-shrink-0">Vous</span>}
                       </div>
-                      <div className="text-[10px] text-white/20">Niv. {user.level}</div>
+                      <div className="flex items-center gap-1.5">
+                        {(() => { const lg = getLeague(getTotalXP(user.level, user.xp)); return (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+                            style={{ background:`${lg.color}20`, color:lg.color, border:`1px solid ${lg.color}30` }}>
+                            {lg.emoji} {lg.name}
+                          </span>
+                        )})()}
+                        <span className="text-[10px] text-white/20">Niv. {user.level}</span>
+                      </div>
                     </div>
 
                     {/* Stats */}

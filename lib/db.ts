@@ -77,10 +77,48 @@ const LEVEL_THRESHOLDS: Record<number, number> = {
   9:  20000,
   10: 30000,
 }
- 
+
 export function xpForLevel(level: number): number {
   return LEVEL_THRESHOLDS[level] ?? level * 5000
 }
+
+// ─── Système de Ligues ────────────────────────────────────────────────────────
+export type League = {
+  name: string
+  emoji: string
+  color: string
+  minXP: number
+  maxXP: number
+}
+
+export const LEAGUES: League[] = [
+  { name:"Bronze",      emoji:"🥉", color:"#cd7f32", minXP:0,     maxXP:500   },
+  { name:"Argent",      emoji:"🥈", color:"#c0c0c0", minXP:500,   maxXP:1000  },
+  { name:"Or",          emoji:"🥇", color:"#ffd700", minXP:1000,  maxXP:2000  },
+  { name:"Platine",     emoji:"🔷", color:"#06b6d4", minXP:2000,  maxXP:3500  },
+  { name:"Diamant",     emoji:"💎", color:"#a855f7", minXP:3500,  maxXP:5500  },
+  { name:"Expert",      emoji:"⚔️",  color:"#f97316", minXP:5500,  maxXP:8000  },
+  { name:"Champion",    emoji:"🏆", color:"#eab308", minXP:8000,  maxXP:12000 },
+  { name:"Élite",       emoji:"🎯", color:"#ef4444", minXP:12000, maxXP:17000 },
+  { name:"Maître",      emoji:"🧠", color:"#8b5cf6", minXP:17000, maxXP:23000 },
+  { name:"Grand Maître",emoji:"👑", color:"#f59e0b", minXP:23000, maxXP:30000 },
+  { name:"Légendaire",  emoji:"🌟", color:"#22d3ee", minXP:30000, maxXP:50000 },
+  { name:"Ultime",      emoji:"⚡", color:"#ffffff", minXP:50000, maxXP:999999},
+]
+
+export function getLeague(totalXP: number): League {
+  return [...LEAGUES].reverse().find(l => totalXP >= l.minXP) ?? LEAGUES[0]
+}
+
+export function getTotalXP(level: number, xp: number): number {
+  // Calculer l'XP total accumulé depuis le début
+  let total = xp
+  for (let l = 1; l < level; l++) {
+    total += LEVEL_THRESHOLDS[l] ?? l * 5000
+  }
+  return total
+}
+
  
 // ─── Config statique ─────────────────────────────────────────────────────────
 export const taskCategories = [

@@ -1,15 +1,15 @@
 "use client"
 
 import { useEffect, useState, useRef } from "react"
-import { motion } from "framer-motion"
+import { motion, AnimatePresence } from "framer-motion"
 import { GlassCard } from "@/components/ui/glass-card"
 import { Progress } from "@/components/ui/progress"
 import { AnimatedCounter } from "@/components/animated-counter"
-import { getProfile, type Profile } from "@/lib/db"
+import { getProfile, getLeague, getTotalXP, type Profile } from "@/lib/db"
 import { Trophy, Flame, Clock, Zap, Target, Loader2, Edit3, Check, X, Camera } from "lucide-react"
-import { cn } from "@/lib/utils"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
 import { createClient } from "@/lib/supabase/client"
+import { cn } from "@/lib/utils"
 
 function getHeatmapColor(count: number) {
   if (count === 0) return "rgba(139,92,246,0.06)"
@@ -153,11 +153,22 @@ export default function ProfilePage() {
   const badges     = getBadges(p, totalSessions)
   const initials   = displayName.slice(0,2).toUpperCase()
 
+  // Ligue
+  const totalXP  = getTotalXP(p?.level??1, p?.xp??0)
+  const league   = getLeague(totalXP)
+  const nextLeagueIdx = Math.min(
+    (["Bronze","Argent","Or","Platine","Diamant","Expert","Champion","Élite","Maître","Grand Maître","Légendaire","Ultime"]
+      .indexOf(league.name)) + 1, 11
+  )
+  const leaguePct = league.maxXP > 0
+    ? Math.min(((totalXP - league.minXP) / (league.maxXP - league.minXP)) * 100, 100)
+    : 100
+
   const stats = [
     { label:"Sessions totales", value:totalSessions,              icon:Target, color:"from-purple-500 to-purple-600" },
-    { label:"Heures de focus",  value:Math.round(totalHours),    icon:Clock,  color:"from-cyan-500 to-cyan-600"    },
-    { label:"Série en cours",   value:p?.streak??0, suffix:" j", icon:Flame,  color:"from-orange-500 to-red-500"   },
-    { label:"XP total",         value:p?.xp??0,                  icon:Zap,    color:"from-yellow-500 to-amber-500" },
+    { label:"Heures de focus",  value:Math.round(totalHours),     icon:Clock,  color:"from-cyan-500 to-cyan-600"    },
+    { label:"Série en cours",   value:p?.streak??0, suffix:" j",  icon:Flame,  color:"from-orange-500 to-red-500"   },
+    { label:"XP total",         value:totalXP,                    icon:Zap,    color:"from-yellow-500 to-amber-500" },
   ]
 
   return (
@@ -238,6 +249,17 @@ export default function ProfilePage() {
                   )}
                 </div>
 
+                {/* BADGE LIGUE */}
+                <div className="flex items-center gap-2 mb-2 flex-wrap">
+                  <motion.div
+                    initial={{ scale:0.8, opacity:0 }} animate={{ scale:1, opacity:1 }}
+                    className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold"
+                    style={{ background:`${league.color}20`, border:`1px solid ${league.color}50`, color:league.color }}>
+                    {league.emoji} {league.name}
+                  </motion.div>
+                  <span className="text-xs text-white/30">{totalXP.toLocaleString()} XP total</span>
+                </div>
+
                 <p className="text-muted-foreground text-sm mb-3">
                   Membre depuis{" "}
                   {p?.joined_date
@@ -276,8 +298,31 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            {/* XP */}
+            {/* XP + LIGUE PROGRESSION */}
             <div className="sm:ml-auto flex flex-col items-end gap-3 min-w-52">
+
+              {/* Progression ligue */}
+              <div className="w-full rounded-xl px-4 py-3"
+                style={{ background:`${league.color}10`, border:`1px solid ${league.color}25` }}>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-1.5 text-xs font-bold" style={{ color:league.color }}>
+                    {league.emoji} {league.name}
+                  </div>
+                  <span className="text-[10px] text-white/30">
+                    {league.name === "Ultime" ? "MAX" : `${(league.maxXP - totalXP).toLocaleString()} XP restants`}
+                  </span>
+                </div>
+                <div className="h-1.5 rounded-full overflow-hidden" style={{ background:"rgba(255,255,255,0.06)" }}>
+                  <motion.div className="h-full rounded-full"
+                    style={{ background:`linear-gradient(90deg,${league.color}80,${league.color})` }}
+                    initial={{ width:0 }} animate={{ width:`${leaguePct}%` }} transition={{ duration:1 }}/>
+                </div>
+                <div className="text-[9px] text-white/25 mt-1 text-right">
+                  {totalXP.toLocaleString()} / {league.maxXP.toLocaleString()} XP
+                </div>
+              </div>
+
+              {/* XP niveau */}
               <div className="w-full">
                 <div className="flex items-center justify-between mb-1.5">
                   <span className="text-xs text-muted-foreground">Niveau {p?.level??1} → {(p?.level??1)+1}</span>
